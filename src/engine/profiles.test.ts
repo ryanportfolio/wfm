@@ -73,3 +73,22 @@ describe('intervalize', () => {
     }
   })
 })
+
+describe('weekday fallback (codex review fix)', () => {
+  it('a weekday with no history gets the overall profile and conserves totals', () => {
+    // Drop every Tuesday from the history.
+    const noTuesdays = buildRecords().filter((r) => {
+      const d = new Date(`${r.ts.slice(0, 10)}T00:00:00Z`)
+      return d.getUTCDay() !== 2
+    })
+    const days = groupQueueDays(noTuesdays, 'q')
+    const profiles = buildProfiles(days, new Set())
+    const tueShares = profiles.shares[2]
+    const sum = tueShares.reduce((a, v) => a + v, 0)
+    expect(sum).toBeCloseTo(1, 9)
+    // 2025-03-04 is a Tuesday; a nonzero daily forecast must survive intervalize.
+    const points = intervalize([{ date: '2025-03-04', total: 500, aht: 0 }], profiles)
+    const total = points.reduce((a, p) => a + p.offered, 0)
+    expect(total).toBeCloseTo(500, 9)
+  })
+})

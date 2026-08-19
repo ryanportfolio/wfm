@@ -163,7 +163,7 @@ export default function App() {
       <footer className="footer">
         Built by Ryan Allen. Methods: seasonal moving average, Holt-Winters, dynamic harmonic
         regression, inverse-WAPE ensemble; Erlang A/C staffing.{' '}
-        <a href="docs/research.md">Research notes</a>
+        <a href="https://github.com/ryanportfolio/wfm/blob/main/docs/research.md">Research notes</a>
       </footer>
     </>
   )

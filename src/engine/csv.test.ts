@@ -52,3 +52,26 @@ describe('parseCsv', () => {
     expect(result.records).toHaveLength(2)
   })
 })
+
+describe('calendar and AHT validation (codex review fixes)', () => {
+  it('rejects impossible calendar dates', () => {
+    const text = `${CSV_HEADER}\n2026-02-31T09:00,q,10,300\n2025-02-29T09:00,q,10,300\n2026-04-31T09:00,q,10,300\n`
+    const result = parseCsv(text)
+    expect(result.records).toEqual([])
+    expect(result.errors.map((e) => e.row)).toEqual([2, 3, 4])
+  })
+
+  it('accepts a real leap day', () => {
+    const result = parseCsv(`${CSV_HEADER}\n2024-02-29T09:00,q,10,300\n`)
+    expect(result.errors).toEqual([])
+    expect(result.records).toHaveLength(1)
+  })
+
+  it('rejects zero AHT on positive-volume rows, accepts it on zero-volume rows', () => {
+    const text = `${CSV_HEADER}\n2026-03-02T09:00,q,10,0\n2026-03-02T09:30,q,0,0\n`
+    const result = parseCsv(text)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0].row).toBe(2)
+    expect(result.records).toHaveLength(1)
+  })
+})

@@ -237,3 +237,22 @@ describe('requiredAgents', () => {
     expect(() => requiredAgents('erlangA', 100, 240, 1800, slTarget)).toThrow()
   })
 })
+
+describe('erlangA staffing below offered load (codex review fix)', () => {
+  it('finds the minimal N even below ceil(A) when abandonment makes it feasible', () => {
+    // A = 3600 * 240 / 1800 = 480 erlangs, impatient callers (30 s patience):
+    // SL 80% in 60 s is met well below the offered load.
+    const target = { pct: 0.8, seconds: 60 }
+    const r = requiredAgents('erlangA', 3600, 240, 1800, target, 30)
+    expect(r.bodies).toBeLessThan(480)
+    expect(r.sl).toBeGreaterThanOrEqual(0.8)
+    // Minimality: one fewer agent misses the target.
+    const below = erlangA(480, r.bodies - 1, 240, 30, 60)
+    expect(below.serviceLevel).toBeLessThan(0.8)
+  })
+
+  it('erlangC still starts at the stability bound', () => {
+    const r = requiredAgents('erlangC', 3600, 240, 1800, { pct: 0.8, seconds: 60 })
+    expect(r.bodies).toBeGreaterThan(480)
+  })
+})

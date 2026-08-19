@@ -79,3 +79,35 @@ describe('forecastDhr', () => {
     expect(out[1]).toBe(0)
   })
 })
+
+describe('calendar holidays on open queues (codex review fix)', () => {
+  it('learns a holiday lift when calendarHolidays marks open holidays', () => {
+    // 280 days, base 1000, every 28th day is a "holiday" with +50% volume.
+    const start = '2024-01-01'
+    const train: DailyPoint[] = []
+    const calendarHolidays = new Set<string>()
+    for (let i = 0; i < 280; i++) {
+      const date = addDays(start, i)
+      const holiday = i % 28 === 14
+      if (holiday) calendarHolidays.add(date)
+      train.push({ date, total: holiday ? 1500 : 1000, aht: 300 })
+    }
+    const futureDates = Array.from({ length: 28 }, (_, j) => addDays(start, 280 + j))
+    const futureHoliday = futureDates[14 - (280 % 28)] ?? futureDates[0]
+    calendarHolidays.add(addDays(start, 280 + 14 - (280 % 28)))
+
+    const base: Omit<ForecastInput, 'calendarHolidays'> = {
+      train,
+      trainHolidays: new Set(),
+      futureDates,
+      futureHolidays: new Set(),
+    }
+    const withCal = forecastDhr({ ...base, calendarHolidays })
+    const without = forecastDhr(base)
+
+    const idx = futureDates.indexOf(futureHoliday)
+    // With the calendar covariate the holiday day forecasts materially higher.
+    expect(withCal[idx]).toBeGreaterThan(without[idx] + 200)
+    expect(withCal[idx]).toBeGreaterThan(1300)
+  })
+})

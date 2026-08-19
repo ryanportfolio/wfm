@@ -119,6 +119,7 @@ export function fitEnsembleWeights(input: ForecastInput, opts: EnsembleOpts = {}
       trainHolidays: input.trainHolidays,
       futureDates: evalPoints.map((p) => p.date),
       futureHolidays: input.trainHolidays,
+      calendarHolidays: input.calendarHolidays,
     }
     const components = runComponents(innerInput)
     for (let j = 0; j < evalPoints.length; j++) {

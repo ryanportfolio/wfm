@@ -237,9 +237,16 @@ export interface RequiredAgentsResult {
 export type ErlangMode = 'erlangC' | 'erlangA'
 
 /**
- * Smallest integer agent count N, starting at max(1, ceil(A)), that meets the SL
- * target, the optional abandonment cap (erlangA only), and the optional
- * occupancy cap (occupancy falls as N rises, so the cap can only raise N).
+ * Smallest integer agent count N that meets the SL target, the optional
+ * abandonment cap (erlangA only), and the optional occupancy cap (occupancy
+ * falls as N rises, so the cap can only raise N).
+ *
+ * Erlang C needs N > A for a stable queue, so the search starts at
+ * max(1, ceil(A)). Erlang A is stable at any N >= 1 because abandonment sheds
+ * load, and with impatient callers the targets can be met below the offered
+ * load; feasibility is monotone in N (SL rises, abandonment and occupancy
+ * fall), so after finding a feasible N by scanning up, a binary search finds
+ * the true minimum down to 1.
  */
 export function requiredAgents(
   mode: ErlangMode,
@@ -261,9 +268,8 @@ export function requiredAgents(
   }
 
   const A = (volume * ahtSec) / intervalSec
-  const start = Math.max(1, Math.ceil(A))
-  const MAX_STEPS = 100_000
-  for (let N = start; N < start + MAX_STEPS; N++) {
+
+  const evaluate = (N: number): RequiredAgentsResult & { feasible: boolean } => {
     let sl: number
     let asaVal: number
     let occ: number
@@ -280,12 +286,36 @@ export function requiredAgents(
       occ = occupancy(A, N)
       abandon = 0
     }
-    const meetsSl = sl >= slTarget.pct
-    const meetsAbandon = maxAbandonPct === undefined || abandon <= maxAbandonPct
-    const meetsOcc = occupancyCap === undefined || occ <= occupancyCap
-    if (meetsSl && meetsAbandon && meetsOcc) {
-      return { bodies: N, sl, asa: asaVal, occupancy: occ, abandonPct: abandon }
+    const feasible =
+      sl >= slTarget.pct &&
+      (maxAbandonPct === undefined || abandon <= maxAbandonPct) &&
+      (occupancyCap === undefined || occ <= occupancyCap)
+    return { bodies: N, sl, asa: asaVal, occupancy: occ, abandonPct: abandon, feasible }
+  }
+
+  const start = Math.max(1, Math.ceil(A))
+  const MAX_STEPS = 100_000
+  for (let N = start; N < start + MAX_STEPS; N++) {
+    const r = evaluate(N)
+    if (!r.feasible) continue
+    let best = r
+    if (mode === 'erlangA' && N > 1) {
+      // Feasibility is monotone in N; search below for the true minimum.
+      let lo = 1
+      let hi = N
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2)
+        const m = evaluate(mid)
+        if (m.feasible) {
+          best = m
+          hi = mid
+        } else {
+          lo = mid + 1
+        }
+      }
     }
+    const { feasible: _feasible, ...result } = best
+    return result
   }
   throw new Error('requiredAgents did not converge within 100000 agents above ceil(A)')
 }

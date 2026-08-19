@@ -15,15 +15,26 @@ export const CSV_HEADER = 'timestamp,queue,offered,aht'
 
 const TIMESTAMP_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
 
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+    return leap ? 29 : 28
+  }
+  return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+}
+
 function validTimestamp(value: string): boolean {
   const m = TIMESTAMP_RE.exec(value)
   if (!m) return false
+  const year = Number(m[1])
   const month = Number(m[2])
   const day = Number(m[3])
   const hour = Number(m[4])
   const minute = Number(m[5])
   const second = m[6] === undefined ? 0 : Number(m[6])
-  return month >= 1 && month <= 12 && day >= 1 && day <= 31 && hour <= 23 && minute <= 59 && second <= 59
+  if (month < 1 || month > 12) return false
+  if (day < 1 || day > daysInMonth(year, month)) return false
+  return hour <= 23 && minute <= 59 && second <= 59
 }
 
 function parseNonNegativeNumber(value: string): number | null {
@@ -63,6 +74,9 @@ export function parseCsv(text: string): CsvParseResult {
     if (offered === null) rowErrors.push(`offered must be a non-negative number, got "${offeredRaw}"`)
     const aht = parseNonNegativeNumber(ahtRaw)
     if (aht === null) rowErrors.push(`aht must be a non-negative number, got "${ahtRaw}"`)
+    if (offered !== null && aht !== null && offered > 0 && aht <= 0) {
+      rowErrors.push('aht must be positive when offered is positive')
+    }
 
     if (rowErrors.length > 0 || offered === null || aht === null) {
       errors.push({ row, message: rowErrors.join('; ') })

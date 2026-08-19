@@ -118,7 +118,15 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
           </div>
         )}
 
-        {reports && scoreOf && best && (
+        {reports && folds === 0 && (
+          <div className="note">
+            Not enough history to backtest: this queue needs at least 168 days (140 training days
+            plus the 28-day horizon) before one fold can run. Load a longer history to score the
+            methods out of sample.
+          </div>
+        )}
+
+        {reports && folds > 0 && scoreOf && best && (
           <>
             <div style={{ overflowX: 'auto' }}>
               <table className="table">
@@ -186,7 +194,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
         )}
       </div>
 
-      {reports && (
+      {reports && folds > 0 && (
         <div className="two-col">
           <div className="card">
             <div className="card-title">

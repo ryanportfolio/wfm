@@ -138,10 +138,15 @@ export function toDailySeries(records: IntervalRecord[], queue: string): DailySe
  * calendar days; dates in `trainHolidays` are excluded from fitting.
  * `futureDates` must be contiguous days starting the day after the last
  * training day; dates in `futureHolidays` are forecast as zero.
+ * `calendarHolidays` carries every calendar holiday in the train + future
+ * span regardless of closure, so covariate models can learn holiday and
+ * post-holiday effects on queues that stay open; when omitted it defaults to
+ * trainHolidays plus futureHolidays.
  */
 export interface ForecastInput {
   train: DailyPoint[]
   trainHolidays: Set<string>
   futureDates: string[]
   futureHolidays: Set<string>
+  calendarHolidays?: Set<string>
 }

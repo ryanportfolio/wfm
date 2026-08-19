@@ -16,7 +16,7 @@ export const PROFILE_DECAY = 0.92
 export interface QueueProfiles {
   /** Sorted times of day, "HH:MM:SS" */
   times: string[]
-  /** shares[weekday][timeIdx]; each weekday row sums to 1 (0 if no history) */
+  /** shares[weekday][timeIdx]; each weekday row sums to 1 (overall profile when the weekday has no history; 0 only when there is no history at all) */
   shares: number[][]
   /** ahtByCell[weekday][timeIdx], seconds */
   ahtByCell: number[][]
@@ -52,9 +52,16 @@ export function buildProfiles(
     }
   }
 
+  // Weekdays with no positive history fall back to the overall profile so a
+  // nonzero daily forecast is never silently zeroed at intervalize time.
+  const overallVolume = new Array(nT).fill(0)
+  for (const row of volume) for (let t = 0; t < nT; t++) overallVolume[t] += row[t]
+  const overallSum = overallVolume.reduce((a, v) => a + v, 0)
+  const overallShares =
+    overallSum > 0 ? overallVolume.map((v) => v / overallSum) : overallVolume.map(() => 0)
   const shares = volume.map((row) => {
     const sum = row.reduce((a, v) => a + v, 0)
-    return sum > 0 ? row.map((v) => v / sum) : row.map(() => 0)
+    return sum > 0 ? row.map((v) => v / sum) : overallShares.slice()
   })
 
   // AHT with fallbacks: cell -> weekday mean -> overall mean -> 0.
@@ -86,7 +93,7 @@ export function buildProfiles(
 /**
  * Map daily totals to interval forecasts via the profiles. Offered values
  * are left unrounded so each day's intervals sum exactly to the daily total
- * (weekdays with no profile history get all-zero intervals).
+ * (weekdays with no own history use the overall profile).
  */
 export function intervalize(daily: DailyPoint[], profiles: QueueProfiles): ForecastPoint[] {
   const out: ForecastPoint[] = []

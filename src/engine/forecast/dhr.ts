@@ -136,18 +136,22 @@ export function solveLinearSystem(a: number[][], b: number[]): number[] {
 }
 
 export function forecastDhr(input: ForecastInput): number[] {
-  const { train, trainHolidays, futureDates, futureHolidays } = input
+  const { train, trainHolidays, futureDates, futureHolidays, calendarHolidays } = input
   if (train.length === 0) return futureDates.map(() => 0)
 
   const trainStartZ = dayNumFromIso(train[0].date)
   const trainEndZ = dayNumFromIso(train[train.length - 1].date)
   const futureEndZ = futureDates.length > 0 ? dayNumFromIso(futureDates[futureDates.length - 1]) : trainEndZ
 
-  // Holiday day numbers over the whole span: closed training holidays plus
-  // known future holidays (both sets come from the same US federal calendar).
+  // Holiday day numbers over the whole span. Prefer the full calendar set so
+  // the holiday and post-holiday dummies get fit on open-on-holiday queues;
+  // fall back to closure-derived sets when the caller supplies no calendar.
   const holidayZ = new Set<number>()
-  for (const d of trainHolidays) holidayZ.add(dayNumFromIso(d))
-  for (const d of futureHolidays) holidayZ.add(dayNumFromIso(d))
+  const holidaySource =
+    calendarHolidays !== undefined
+      ? [calendarHolidays]
+      : [trainHolidays, futureHolidays]
+  for (const set of holidaySource) for (const d of set) holidayZ.add(dayNumFromIso(d))
   const ordinals = businessOrdinals(trainStartZ, futureEndZ, holidayZ)
 
   // Assemble training rows, excluding closed-holiday days.

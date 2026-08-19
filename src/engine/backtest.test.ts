@@ -90,3 +90,14 @@ describe('runForecast on sample data', () => {
     }
   })
 })
+
+describe('insufficient history (codex review fix)', () => {
+  it('returns zero folds and no scores instead of NaN', () => {
+    const short = records.filter((r) => r.ts >= '2026-06-01')
+    const result = runBacktest(short, 'voice-benefits')
+    for (const report of result) {
+      expect(report.folds).toBe(0)
+      expect(report.scores).toEqual([])
+    }
+  })
+})

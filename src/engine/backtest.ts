@@ -53,11 +53,18 @@ export function buildFoldInput(
     holidayClosed && futureDates.length > 0
       ? new Set(usHolidays(futureDates[0], futureDates[futureDates.length - 1]))
       : new Set<string>()
+  const spanStart = cleanedDaily.length > 0 ? cleanedDaily[0].date : futureDates[0]
+  const spanEnd = futureDates.length > 0 ? futureDates[futureDates.length - 1] : cleanedDaily[cleanedDaily.length - 1].date
+  const calendarHolidays =
+    spanStart !== undefined && spanEnd !== undefined
+      ? new Set(usHolidays(spanStart, spanEnd))
+      : new Set<string>()
   return {
     train: cleanedDaily,
     trainHolidays: new Set(closedHolidays),
     futureDates,
     futureHolidays,
+    calendarHolidays,
   }
 }
 
@@ -143,6 +150,12 @@ export function runBacktest(
       }
     }
     foldsRun++
+  }
+
+  // No fold fit (history shorter than MIN_TRAIN_DAYS + horizon): report zero
+  // folds with no scores instead of NaN metrics over empty arrays.
+  if (foldsRun === 0) {
+    return METHOD_NAMES.map(() => ({ queue, folds: 0, horizonDays, scores: [] }))
   }
 
   return METHOD_NAMES.map((method) => {

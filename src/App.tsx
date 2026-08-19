@@ -12,6 +12,7 @@ import { ForecastTab } from './ui/ForecastTab'
 import type { Horizon } from './ui/ForecastTab'
 import { AccuracyTab } from './ui/AccuracyTab'
 import { StaffingTab } from './ui/StaffingTab'
+import { CapacityTab } from './ui/CapacityTab'
 import { EmptyState } from './ui/EmptyState'
 import { useChartTheme } from './ui/theme'
 
@@ -154,6 +155,17 @@ export default function App() {
             <EmptyState
               title="No data loaded"
               text="Load the sample dataset or upload a CSV to compute staffing requirements."
+              onGoData={() => setTab('data')}
+            />
+          )}
+        </div>
+        <div hidden={tab !== 'capacity'}>
+          {hasData ? (
+            <CapacityTab records={records} queue={queue} theme={theme} />
+          ) : (
+            <EmptyState
+              title="No data loaded"
+              text="Load the sample dataset or upload a CSV to build a capacity plan."
               onGoData={() => setTab('data')}
             />
           )}

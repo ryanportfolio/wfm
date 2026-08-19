@@ -34,14 +34,18 @@ Daily forecasts are spread to 30-minute intervals with recency-weighted day-of-w
 
 ![Staffing tab](docs/screenshots/staffing-dark.png)
 
+**Capacity.** Weekly FTE plan (default 52 weeks): demand side computes required FTE interval-true (weekly volume through the learned intraday profiles and the Erlang engine, not a workload shortcut); supply side walks headcount week by week through hire classes (training, nesting, graduation), compounding attrition, and per-cohort ramp curves. Outputs the over/(under) line, projected weekly service level at the supplied staffing, a greedy hiring-suggestion solver (transparent, lead-time aware, quarter-capped), base/upside/downside scenarios, a one-lever sensitivity table, and CSV export. Volume, AHT, and shrinkage are editable per week. Spec: [docs/design-capacity.md](docs/design-capacity.md).
+
+![Capacity tab](docs/screenshots/capacity-light.png)
+
 ## Why these methods
 
 Research notes with sources are in [docs/research.md](docs/research.md): Taylor 2008 on which classical methods win at which horizons, the forecast-combination evidence, Erlang A vs C, pooling math, and the accuracy-metric tradeoffs. The design rationale (stack, data model, algorithm spec) is in [docs/design.md](docs/design.md).
 
 ## Roadmap
 
-1. Forecast + staffing engine (this release).
-2. Capacity planner: weekly FTE walk with attrition, hire classes, and ramp.
+1. Forecast + staffing engine (shipped).
+2. Capacity planner: weekly FTE walk with attrition, hire classes, and ramp (shipped).
 3. Queue strategy analyzer: pooled vs split staffing comparison, arrival correlation, mix-factor stress.
 4. Intraday reforecast simulator: morning-actuals ratio reforecasting and skill-move what-ifs.
 

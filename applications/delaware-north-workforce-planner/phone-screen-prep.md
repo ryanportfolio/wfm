@@ -1,6 +1,6 @@
 # Delaware North phone screen prep
 
-Workforce Planner, gaming unit, remote EST, $62,354 + annual bonus. HR screen 2026-08-20. Organized by question category: match their question to a category, speak the answer, don't recite it.
+Workforce Planner, gaming unit, remote EST, $62,354 + annual bonus. HR screen 2026-08-20.
 
 ## About me
 
@@ -16,15 +16,11 @@ Honestly, the posting reads like my current day: building schedules to a forecas
 
 ## Systems: UKG Dimensions and Virtual Roster
 
-Honest inch first, then bridge. Don't volunteer this unprompted.
-
 I use UKG Dimensions today on the timekeeping side, punches and timecards, so I know the platform. I haven't built schedules in it. Scheduling is what I own end to end in Verint as tenant administrator: work patterns, rotations, shift bids, schedule generation for about a thousand people. Virtual Roster I haven't used, my understanding is it's gaming-specific for dealer rotations. But I've now been the go-to admin on four platforms: NICE IEX, Alvaria, Genesys, and Verint. Every time I came in cold and ended up being the one training everyone else. The concepts transfer, it's learning where the buttons are.
 
 ## Salary
 
 The posted range works for me, especially with the bonus plan on top.
-
-Stop there. Never give the current number.
 
 ## Overqualified probe ("you lead a team now, why this?")
 
@@ -44,8 +40,6 @@ Priorities change fast intraday. I stay ahead of it by continuously monitoring s
 
 ## Analytical / problem-solving story
 
-Pick one, keep it to 30 seconds:
-
 - Calendar tool: Verint only gave us absenteeism at end of day. So I built a tool off the calendar export that gives intraday unplanned-absence hours, plus a break and lunch heatmap by 15-minute interval. We use the heatmap every week to optimize future schedules. I have a demo I could show you if you'd like.
 - Report overhaul: I inherited a manual intraday report nobody trusted. I talked to the managers using it, analyzed weeks of data, found where it was wrong, and rebuilt it as one macro module that runs once and updates everything. Accurate, timely, and it can't fat-finger itself.
 
@@ -62,4 +56,3 @@ Fully remote six years, dedicated home office, Eastern time. Days shift works. N
 - Is this planner supporting one property's gaming floor or multiple properties?
 - What's driving the hire: growth, a backfill, or centralizing scheduling?
 - What does success look like in the first 90 days?
-- (Save for hiring manager round: their service level and labor targets, and how deep they actually use Virtual Roster.)

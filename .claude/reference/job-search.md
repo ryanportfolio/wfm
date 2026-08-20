@@ -47,3 +47,11 @@ Ryan is applying to workforce management roles and uses this repo to draft appli
 - Faneuil team size: resume says 25, responses doc says 20.
 - Responses doc has a literal "My responsibilities include XYZ" placeholder in the 50+ employee question. Never ship that.
 - Responses doc calls the role "manager of a WFM team"; resume title is Senior Team Lead. Keep title consistent with resume unless he says otherwise.
+
+## Comp context
+
+- As of 2026-08: current TTEC comp is about $62k or slightly less. Roles posting around $60-65k are lateral or up for him, not a step down, despite the senior title and 1,000-FTE scope (BPO comp runs below scope). Interview framing: "posted range works"; never volunteer current salary; counter overqualification assumptions early.
+
+## Applications
+
+- 2026-08-20: Workforce Planner, Delaware North (gaming unit, Buffalo NY, remote EST OK), $62,354 + bonus. HR phone screen 2026-08-20. Gap: Virtual Roster (never used; casino dealer-rotation scheduling, VizExplorer) and UKG Dimensions scheduling side (has timekeeping/punch exposure only). Bridge: 4-platform SME track record, Verint tenant admin, trains system users. JD wants forecast-vs-scheduled monitoring, labor cost control, user training: all current daily work.

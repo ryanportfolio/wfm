@@ -8,11 +8,11 @@ So I've been in workforce management about five years, six in contact centers ov
 
 ## Why leaving
 
-After five years at TTEC I've learned a ton. At this stage I want to be part of a company, not a client. This is my fourth client after the others ended or were restructured. BPO margins are thin and WFM there has been shrinking. I'd rather go deep owning scheduling inside one company than wide across a client book.
+After five years at TTEC I've learned a ton. At this stage in my career I want the stability of being part of a company, not the volatility of a client contract that may not renew. This is my fourth client after the others ended or were restructured. BPO margins are thin and WFM there has been shrinking. And Delaware North has been around over a hundred years and is still family-owned. That's exactly the kind of stability I'm looking for, and I'd love to help the operation run better from the scheduling side.
 
 ## Why this role / why Delaware North
 
-Honestly, the posting reads like my current day: building schedules to a forecast, watching scheduled hours against volume, managing overtime and time off, training system users. And Delaware North being a hundred-year family-owned company is exactly the stability I'm looking for after four client changes. It's remote EST and I'm in Virginia, so home time zone.
+Honestly, the posting reads like my current day: building schedules to a forecast, watching scheduled hours against volume, managing overtime and time off, training system users. So I know I can contribute from day one. It's remote EST and I'm in Virginia, so home time zone.
 
 ## Systems: UKG Dimensions and Virtual Roster
 

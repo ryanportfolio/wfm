@@ -90,6 +90,7 @@ Topical reference lives in `.claude/reference/`. Consult BEFORE non-trivial work
 | `commands.md` | Build / dev / test commands |
 | `tech-stack.md` | Non-default picks + why |
 | `deployment.md` | Deploy target, artifacts |
+| `job-search.md` | Ryan's WFM job applications: profile, story bank, voice |
 
 New quirk bites → `/recall save <text>`.
 

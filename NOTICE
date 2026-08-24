@@ -1,0 +1,5 @@
+This project is licensed under the MIT License (see LICENSE).
+
+Individual skills under .claude/skills/ and .agents/skills/ may carry their own
+licenses and attributions (see .claude/skills/PROVENANCE.md and per-skill
+LICENSE/NOTICE files); those terms govern for the respective skill contents.

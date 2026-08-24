@@ -1,5 +1,11 @@
 # WFM Forecast & Staffing Workbench
 
+[![CI](https://github.com/ryanportfolio/wfm/actions/workflows/ci.yml/badge.svg)](https://github.com/ryanportfolio/wfm/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/demo-live-2f6fed)](https://ryanportfolio.github.io/wfm/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+**[Open the live demo](https://ryanportfolio.github.io/wfm/)**, then click "Load sample data". No install, no sign-up, no backend.
+
 A contact center workforce management tool: forecast interval-level contact volume with comparable methods, prove accuracy with rolling-origin backtests, convert the forecast to interval staffing through Erlang A or Erlang C, and test what-if scenarios live.
 
 Built by Ryan Allen (WFM senior team lead; Verint tenant admin). Runs fully in the browser: no backend, no data leaves the machine.
@@ -13,7 +19,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173, click "Load sample data" (2 years, 3 queues, 30-minute intervals), and walk the tabs left to right. `npm run build` produces a static site; `npx vitest run` runs the 86-test suite.
+Open http://localhost:5173, click "Load sample data" (2 years, 3 queues, 30-minute intervals), and walk the tabs left to right. `npm run build` produces a static site; `npm test` runs the 94-test suite.
 
 ## What it does
 
@@ -48,3 +54,9 @@ Research notes with sources are in [docs/research.md](docs/research.md): Taylor 
 ## Stack
 
 Vite, React, TypeScript, Recharts. All forecasting and queueing math lives in [src/engine](src/engine) as dependency-free pure functions with Vitest coverage, including Erlang B/C/A against published table values.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The agent-harness files under `.claude/`, `.agents/`
+and `.codex/` are template tooling rather than project source; some carry their
+own terms, listed in [NOTICE](NOTICE).

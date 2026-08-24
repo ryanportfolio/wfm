@@ -4,3 +4,10 @@
 # Workflow and issue-template YAML stays LF. A Windows checkout that rewrites it
 # to CRLF produces a whole-file diff for everyone with core.autocrlf off.
 *.yml text eol=lf
+
+# Agent-harness template files. They are not this project's source, so keep them
+# out of the language bar and the diff view; GitHub then reads the repo as the
+# TypeScript app it is.
+.claude/** linguist-vendored
+.agents/** linguist-vendored
+.codex/** linguist-vendored

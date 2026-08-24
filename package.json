@@ -3,6 +3,23 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "description": "Contact center workforce management workbench: interval volume forecasting, rolling-origin backtests, and Erlang A/C staffing, all client-side.",
+  "license": "MIT",
+  "author": "Ryan Allen",
+  "homepage": "https://ryanportfolio.github.io/wfm/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryanportfolio/wfm.git"
+  },
+  "keywords": [
+    "workforce-management",
+    "contact-center",
+    "erlang-c",
+    "erlang-a",
+    "forecasting",
+    "holt-winters",
+    "call-center"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

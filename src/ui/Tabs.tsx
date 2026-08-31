@@ -1,10 +1,11 @@
-export type TabId = 'data' | 'forecast' | 'accuracy' | 'staffing'
+export type TabId = 'data' | 'forecast' | 'accuracy' | 'staffing' | 'capacity'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'data', label: 'Data' },
   { id: 'forecast', label: 'Forecast' },
   { id: 'accuracy', label: 'Accuracy' },
   { id: 'staffing', label: 'Staffing' },
+  { id: 'capacity', label: 'Capacity' },
 ]
 
 interface TabsProps {

@@ -248,6 +248,9 @@ export type ErlangMode = 'erlangC' | 'erlangA'
  * fall), so after finding a feasible N by scanning up, a binary search finds
  * the true minimum down to 1.
  */
+const requiredAgentsCache = new Map<string, RequiredAgentsResult>()
+const REQUIRED_AGENTS_CACHE_MAX = 50_000
+
 export function requiredAgents(
   mode: ErlangMode,
   volume: number,
@@ -261,6 +264,11 @@ export function requiredAgents(
   if (volume <= 0 || ahtSec <= 0) {
     return { bodies: 0, sl: 1, asa: 0, occupancy: 0, abandonPct: 0 }
   }
+  // Exact-argument memo: capacity planning and live what-if sliders repeat
+  // identical (volume, AHT, config) calls; results are deterministic.
+  const cacheKey = `${mode}|${volume}|${ahtSec}|${intervalSec}|${slTarget.pct}|${slTarget.seconds}|${patienceSec}|${maxAbandonPct}|${occupancyCap}`
+  const hit = requiredAgentsCache.get(cacheKey)
+  if (hit !== undefined) return hit
   if (!(intervalSec > 0)) throw new Error('intervalSec must be > 0')
   if (!(slTarget.pct < 1)) throw new Error('slTarget.pct must be < 1 (Erlang SL never reaches 100%)')
   if (mode === 'erlangA' && !(patienceSec !== undefined && patienceSec > 0)) {
@@ -315,6 +323,10 @@ export function requiredAgents(
       }
     }
     const { feasible: _feasible, ...result } = best
+    if (requiredAgentsCache.size >= REQUIRED_AGENTS_CACHE_MAX) requiredAgentsCache.clear()
+    // Frozen because the same object is handed to every future caller.
+    Object.freeze(result)
+    requiredAgentsCache.set(cacheKey, result)
     return result
   }
   throw new Error('requiredAgents did not converge within 100000 agents above ceil(A)')

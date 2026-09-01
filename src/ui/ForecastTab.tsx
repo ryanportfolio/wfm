@@ -9,6 +9,8 @@ import type { ForecastChartRow } from './charts/ForecastChart'
 import { IntradayForecastChart } from './charts/IntradayForecastChart'
 import type { IntradayRow } from './charts/IntradayForecastChart'
 import { fmtDateWeekday, fmtPct } from './format'
+import { forecastDailyCsv, forecastIntervalCsv } from '../engine/exportCsv'
+import { downloadTextFile, fileSlug } from './download'
 import { Term } from './Term'
 
 export type Horizon = 7 | 14 | 28
@@ -91,6 +93,19 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              className="btn"
+              aria-label="Download daily forecast CSV"
+              onClick={() =>
+                downloadTextFile(
+                  `forecast-daily-${fileSlug(queue)}-${horizon}d.csv`,
+                  forecastDailyCsv(forecast.dailyForecast),
+                )
+              }
+            >
+              Download CSV
+            </button>
           </div>
         </div>
         <div className="legend-row">
@@ -152,6 +167,19 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="btn"
+              aria-label="Download intraday forecast CSV"
+              onClick={() =>
+                downloadTextFile(
+                  `forecast-intraday-${fileSlug(queue)}-${horizon}d.csv`,
+                  forecastIntervalCsv(forecast.intervalForecast),
+                )
+              }
+            >
+              Download CSV
+            </button>
           </div>
           <IntradayForecastChart rows={intradayRows} theme={theme} />
         </div>

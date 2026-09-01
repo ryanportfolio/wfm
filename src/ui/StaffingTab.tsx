@@ -6,6 +6,9 @@ import { applyScenario } from '../engine/staffing'
 import type { ChartTheme } from './theme'
 import { ScenarioPanel, DEFAULT_SCENARIO, toEngineScenario } from './controls/ScenarioPanel'
 import type { ScenarioState } from './controls/ScenarioPanel'
+import { encodeScenarioParam, isDefaultScenario, scenariosFromHash } from './scenarioUrl'
+import { staffingDailyCsv, staffingIntervalCsv } from '../engine/exportCsv'
+import { downloadTextFile, fileSlug } from './download'
 import { StaffingIntervalChart } from './charts/StaffingIntervalChart'
 import type { StaffingRow } from './charts/StaffingIntervalChart'
 import { fmtDateWeekday, fmtInt, fmtNum, fmtPct, fmtSec, fmtSigned } from './format'
@@ -200,10 +203,38 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
     [intervalForecast, queue],
   )
 
-  const [stateA, setStateA] = useState<ScenarioState>(DEFAULT_SCENARIO)
-  const [compare, setCompare] = useState(false)
-  const [stateB, setStateB] = useState<ScenarioState | null>(null)
+  // A shared link (#s=...) seeds the scenario state; otherwise defaults.
+  const [initialUrl] = useState(() => scenariosFromHash(window.location.hash))
+  const [stateA, setStateA] = useState<ScenarioState>(initialUrl?.a ?? DEFAULT_SCENARIO)
+  const [compare, setCompare] = useState(initialUrl?.b != null)
+  const [stateB, setStateB] = useState<ScenarioState | null>(initialUrl?.b ?? null)
   const [selectedDay, setSelectedDay] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  // Keep the URL hash in sync (replaceState, so no history spam). Empty param
+  // means everything is at defaults; drop the hash entirely then.
+  const urlParam = useMemo(
+    () => encodeScenarioParam(stateA, compare ? stateB : null),
+    [stateA, stateB, compare],
+  )
+  const debouncedParam = useDebounced(urlParam, 200)
+  useEffect(() => {
+    const base = window.location.pathname + window.location.search
+    window.history.replaceState(null, '', debouncedParam ? `${base}#s=${debouncedParam}` : base)
+  }, [debouncedParam])
+
+  const clipboardOk = typeof navigator !== 'undefined' && !!navigator.clipboard
+  const copyLink = () => {
+    const { origin, pathname, search } = window.location
+    const url = `${origin}${pathname}${search}${urlParam ? `#s=${urlParam}` : ''}`
+    navigator.clipboard.writeText(url).then(
+      () => {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 1500)
+      },
+      () => {},
+    )
+  }
 
   const {
     grid: gridA,
@@ -250,6 +281,21 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
     if (on) setStateB((prev) => prev ?? { ...stateA })
   }
 
+  // The grid holds staffing outputs only; rebuild the scenario-scaled
+  // offered/AHT inputs so the interval CSV shows them side by side.
+  const downloadIntervals = (grid: StaffingGridResult, state: ScenarioState, suffix: string) => {
+    const vs = 1 + state.volumeDeltaPct / 100
+    const as = 1 + state.ahtDeltaPct / 100
+    const scaled = intervalForecast.map((p) => ({ offered: p.offered * vs, aht: p.aht * as }))
+    downloadTextFile(
+      `staffing-intervals-${fileSlug(queue)}${suffix}.csv`,
+      staffingIntervalCsv(grid.intervals, scaled),
+    )
+  }
+  const downloadDaily = (summary: GridSummary, suffix: string) => {
+    downloadTextFile(`staffing-daily-${fileSlug(queue)}${suffix}.csv`, staffingDailyCsv(summary.days))
+  }
+
   return (
     <div className="staffing-layout">
       <div className="stack">
@@ -258,6 +304,8 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           state={stateA}
           isChatQueue={isChat}
           onChange={(patch) => setStateA((s) => ({ ...s, ...patch }))}
+          onReset={() => setStateA({ ...DEFAULT_SCENARIO })}
+          isDefault={isDefaultScenario(stateA)}
         />
         {!compare ? (
           <button type="button" className="btn" onClick={() => toggleCompare(true)}>
@@ -271,6 +319,8 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                 state={stateB}
                 isChatQueue={isChat}
                 onChange={(patch) => setStateB((s) => (s ? { ...s, ...patch } : s))}
+                onReset={() => setStateB({ ...DEFAULT_SCENARIO })}
+                isDefault={isDefaultScenario(stateB)}
               />
             )}
             <button type="button" className="btn" onClick={() => toggleCompare(false)}>
@@ -278,6 +328,19 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             </button>
           </>
         )}
+        <button
+          type="button"
+          className="btn"
+          disabled={!clipboardOk}
+          title={
+            clipboardOk
+              ? 'Copies a link that restores these scenario settings'
+              : 'Clipboard is not available in this browser; copy the page address instead'
+          }
+          onClick={copyLink}
+        >
+          {copied ? 'Copied' : 'Copy link to this scenario'}
+        </button>
       </div>
 
       <div className="stack">
@@ -376,6 +439,26 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               Bars: scheduled agents. Line: bodies required on the phones.
             </span>
             <span style={{ flex: 1 }} />
+            <button
+              type="button"
+              className="btn"
+              disabled={!gridA}
+              aria-label="Download interval staffing CSV, scenario A"
+              onClick={() => gridA && downloadIntervals(gridA, stateA, compare ? '-a' : '')}
+            >
+              {compare ? 'Download CSV (A)' : 'Download CSV'}
+            </button>
+            {compare && (
+              <button
+                type="button"
+                className="btn"
+                disabled={!gridB || !stateB}
+                aria-label="Download interval staffing CSV, scenario B"
+                onClick={() => gridB && stateB && downloadIntervals(gridB, stateB, '-b')}
+              >
+                Download CSV (B)
+              </button>
+            )}
             <select
               aria-label="Day shown in the interval staffing chart"
               value={day}
@@ -405,6 +488,26 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                 SL, ASA, and abandonment are volume-weighted projections at the staffed level.
                 Peak on phones is bodies handling contacts, before shrinkage.
               </span>
+              <span style={{ flex: 1 }} />
+              <button
+                type="button"
+                className="btn"
+                aria-label="Download daily staffing summary CSV, scenario A"
+                onClick={() => downloadDaily(summaryA, compare ? '-a' : '')}
+              >
+                {compare ? 'Download CSV (A)' : 'Download CSV'}
+              </button>
+              {compare && (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={!summaryB}
+                  aria-label="Download daily staffing summary CSV, scenario B"
+                  onClick={() => summaryB && downloadDaily(summaryB, '-b')}
+                >
+                  Download CSV (B)
+                </button>
+              )}
             </div>
             <div className="scroll" style={{ maxHeight: 420 }}>
               <table className="table">

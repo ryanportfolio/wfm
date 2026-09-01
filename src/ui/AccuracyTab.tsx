@@ -9,6 +9,8 @@ import type { WapeBarRow } from './charts/WapeBarChart'
 import { LeadTimeChart } from './charts/LeadTimeChart'
 import type { LeadTimeRow } from './charts/LeadTimeChart'
 import { fmtPct, fmtSignedPct } from './format'
+import { scorecardCsv } from '../engine/exportCsv'
+import { downloadTextFile, fileSlug } from './download'
 import { errorMessage } from './errors'
 import { Term } from './Term'
 
@@ -160,6 +162,18 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             scored against raw actuals
           </span>
           <span style={{ flex: 1 }} />
+          <button
+            type="button"
+            className="btn"
+            disabled={!reports || folds === 0}
+            aria-label="Download scorecard CSV"
+            onClick={() =>
+              reports &&
+              downloadTextFile(`backtest-scorecard-${fileSlug(queue)}.csv`, scorecardCsv(reports))
+            }
+          >
+            Download scorecard CSV
+          </button>
           <button type="button" className="btn btn-primary" disabled={running} onClick={run}>
             {running ? (
               <>

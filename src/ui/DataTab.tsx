@@ -6,6 +6,7 @@ import type { ForecastResult } from '../engine/forecastPipeline'
 import { toDailySeries } from '../engine/series'
 import type { ChartTheme } from './theme'
 import { DailyHistoryChart } from './charts/DailyHistoryChart'
+import { downloadTextFile } from './download'
 import { fmtDateLong, fmtInt, fmtNum } from './format'
 import { Term } from './Term'
 
@@ -46,13 +47,7 @@ export function DataTab({
   const fileRef = useRef<HTMLInputElement>(null)
 
   const downloadTemplate = () => {
-    const blob = new Blob([csvTemplate()], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'wfm-template.csv'
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadTextFile('wfm-template.csv', csvTemplate())
   }
 
   // Header plus the first three example rows, shown as a copyable snippet.

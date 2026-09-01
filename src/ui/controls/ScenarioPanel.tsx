@@ -55,14 +55,35 @@ interface ScenarioPanelProps {
   state: ScenarioState
   isChatQueue: boolean
   onChange: (patch: Partial<ScenarioState>) => void
+  /** Restore every control to DEFAULT_SCENARIO. */
+  onReset: () => void
+  /** True when the state already equals DEFAULT_SCENARIO. */
+  isDefault: boolean
 }
 
-export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioPanelProps) {
+export function ScenarioPanel({
+  title,
+  state,
+  isChatQueue,
+  onChange,
+  onReset,
+  isDefault,
+}: ScenarioPanelProps) {
   const erlangA = state.mode === 'erlangA'
   return (
     <div className="card">
       <div className="card-title">
         <h2>{title}</h2>
+        <span style={{ flex: 1 }} />
+        <button
+          type="button"
+          className="btn"
+          disabled={isDefault}
+          aria-label={`Reset ${title} to defaults`}
+          onClick={onReset}
+        >
+          Reset to defaults
+        </button>
       </div>
 
       <div className="slider-row">

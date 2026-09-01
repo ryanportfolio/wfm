@@ -109,10 +109,10 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
           </div>
         </div>
         <div className="legend-row">
-          <label style={{ cursor: 'default' }}>
+          <span className="legend-item">
             <span className="swatch" style={{ background: theme.actual }} />
             Actual
-          </label>
+          </span>
           {(['sma', 'hw', 'dhr', 'ensemble'] as UiMethod[]).map((m) => (
             <label key={m}>
               <input
@@ -125,13 +125,13 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
             </label>
           ))}
           {forecast.band && (
-            <label style={{ cursor: 'default' }}>
+            <span className="legend-item">
               <span
                 className="swatch"
                 style={{ background: METHOD_COLORS.ensemble, opacity: 0.3 }}
               />
               80% range
-            </label>
+            </span>
           )}
         </div>
         <ForecastChart rows={rows} lastActualDate={lastActualDate} visible={visible} theme={theme} />

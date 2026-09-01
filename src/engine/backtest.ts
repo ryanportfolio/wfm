@@ -2,7 +2,7 @@ import type { BacktestReport, BacktestScore, IntervalRecord, RelErrorSample } fr
 import type { ForecastInput } from './series'
 import { addDays, groupQueueDays } from './series'
 import { cleanDays } from './clean'
-import { usHolidays } from './sampleData'
+import { usHolidays } from './holidays'
 import { forecastEnsemble, COMPONENT_NAMES } from './forecast/ensemble'
 import type { EnsembleOpts } from './forecast/ensemble'
 import { bandQuantiles } from './intervals'

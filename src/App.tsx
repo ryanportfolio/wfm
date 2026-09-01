@@ -45,7 +45,10 @@ export default function App() {
   const [forecast, setForecast] = useState<ForecastResult | null>(null)
   const [forecastError, setForecastError] = useState<string | null>(null)
   useEffect(() => {
+    // The sync setForecast calls below reset request state when the inputs
+    // change; the real value arrives from the worker's async response.
     if (!records || !queue) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale forecast when the dataset goes away
       setForecast(null)
       return
     }

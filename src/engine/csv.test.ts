@@ -83,7 +83,7 @@ describe('csvTemplate', () => {
   })
 })
 
-describe('calendar and AHT validation (codex review fixes)', () => {
+describe('calendar and AHT validation', () => {
   it('rejects impossible calendar dates', () => {
     const text = `${CSV_HEADER}\n2026-02-31T09:00,q,10,300\n2025-02-29T09:00,q,10,300\n2026-04-31T09:00,q,10,300\n`
     const result = parseCsv(text)

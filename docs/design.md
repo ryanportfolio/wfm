@@ -16,7 +16,7 @@ v1 ships alone and gets perfected before module 2 starts.
 - Vite + React + TypeScript, fully client-side. No backend: `npm install && npm run dev` runs it; the same build deploys as a static site (GitHub Pages/Vercel) for a live resume link.
 - All math hand-implemented in `src/engine/` as pure TypeScript functions with unit tests (Vitest). No stats libraries: the implementations are the portfolio.
 - Charts: Recharts (declarative, small API surface).
-- No stored state beyond the browser; CSV in, everything computed on the fly. Web Worker if backtests block the UI thread.
+- No stored state beyond the browser; CSV in, everything computed on the fly. Forecasts, backtests, and staffing solves run in a shared Web Worker (`src/engine/worker.ts`), with an in-process fallback where Worker is unavailable. Scenario settings round-trip through the URL hash for shareable links.
 
 Why not Python: gradient boosting is the only method that needs it, and the research (design section of research.md) shows the ensemble + DHR covariates capture most of the documented gain. A Python service can be added as a v2 experiment.
 
@@ -35,7 +35,7 @@ interface IntervalRecord {
 
 CSV columns `timestamp,queue,offered,aht`. Bundled sample dataset: generated, 2 years, 3 queues (voice-heavy public-sector shape: Monday peaks, post-holiday spikes, benefit-cycle bumps, intraday twin peaks), overdispersed negative-binomial noise, tagged holidays, a few injected outage outliers so the cleaning step has something to show.
 
-Derived objects: `DailySeries` (per queue: date, total, aht-weighted), `IntradayProfile` (per queue x weekday: 48 shares summing to 1), `Forecast` (per method: daily totals + intervalized), `BacktestReport` (per method x grain: WAPE, MAPE, bias), `StaffingGrid` (per interval: required bodies, scheduled after shrinkage, occupancy, predicted SL/ASA/abandon).
+Derived objects: `DailySeries` (per queue: date, total, aht-weighted), weekday interval profiles (per weekday: one share per interval, summing to 1; see `profiles.ts`), `ForecastResult` (per-method daily totals, banded ensemble daily points, intervalized ensemble), `BacktestReport` (per method x grain: WAPE, MAPE, bias), `StaffingGrid` (per interval: required bodies, scheduled after shrinkage, occupancy, predicted SL/ASA/abandon).
 
 ## Forecast engine
 
@@ -46,20 +46,20 @@ Pipeline per queue:
    - `seasonalMovingAverage`: trimmed mean of same weekday, last 8 weeks, recency weights.
    - `holtWinters`: additive, weekly seasonality (m=7), grid-searched alpha/beta/gamma on the training window.
    - `dhr`: ridge regression on Fourier pairs (weekly K=3, yearly K=2), linear trend, holiday/holiday-adjacent/weekday dummies.
-3. **Custom ensemble "blend"**: weights per horizon bucket (1-3d, 4-14d, 15d+) proportional to inverse rolling-origin WAPE of each component; renormalized. Falls back to equal weights below minimum history.
+3. **Custom ensemble "blend"**: weights per horizon bucket (1-3d, 4-14d, 15-28d) proportional to inverse rolling-origin WAPE of each component raised to a power; the power is picked from a small grid (1, 2, 4, 8, Infinity) by pooled inner blend WAPE, so the data decides how concentrated the blend is. Falls back to equal weights below minimum history. The inner-fold relative errors also calibrate an 80% prediction band per horizon bucket (empirical 10th/90th percentiles), drawn around the ensemble daily forecast.
 4. **Intervalize**: recency-weighted day-of-week profiles from cleaned history map daily totals to intervals. AHT forecast: recency-weighted same-weekday interval means.
 5. **Backtest**: rolling origin (default 8 folds, 28-day horizon), scoring every component and the ensemble at interval/daily/weekly grain: WAPE, MAPE, bias. Scorecard rendered in UI; the ensemble must prove itself on the loaded data, not by assertion.
 
 ## Staffing engine
 
-- Erlang C: stable Erlang B recursion, SL/ASA/occupancy outputs, agent iteration from `ceil(A)+1`.
-- Erlang A: birth-death steady-state solve with patience theta; outputs SL, ASA, abandonment; dual-target staffing (SL and max abandon).
+- Erlang C: stable Erlang B recursion, SL/ASA/occupancy outputs; the agent search starts at `max(1, ceil(A))` (N > A is required for stability).
+- Erlang A: birth-death steady-state solve with patience theta; outputs SL, ASA, abandonment; dual-target staffing (SL and max abandon). Abandonment sheds load, so targets can be feasible below `ceil(A)`; after the upward scan finds a feasible N, a binary search finds the true minimum down to 1.
 - Gross-up: `scheduled = bodies / (1 - shrinkage)`; occupancy cap adds agents when `A/N` exceeds the cap even at met SL.
 - Inputs per scenario: SL target (X% in Y s), patience mean, shrinkage, occupancy cap, interval length.
 
 ## What-if levers (v1 scope)
 
-Sliders recomputing the staffing grid live: volume +/-30%, AHT +/-20%, shrinkage 0-50%, SL target, patience, occupancy cap. Side-by-side scenario A/B with delta row (FTE difference per interval and daily total).
+Sliders recomputing the staffing grid live: volume +/-30%, AHT +/-20%, shrinkage 0-50%, SL target, patience, abandonment cap, occupancy cap, chat concurrency, Erlang A/C mode. Side-by-side scenario A/B with per-day deltas (scheduled FTE-hours, peak heads, SL, cost). A fixed-staff mode projects service at a given head count instead of solving for one. Optional cost-per-hour rate prices scheduled FTE-hours; forecast, scorecard, and staffing tables export as CSV.
 
 ## UI layout
 

@@ -46,7 +46,8 @@ export function Tabs({ active, onChange }: TabsProps) {
   }
 
   return (
-    <nav className="tabs" role="tablist" aria-label="Workbench sections">
+    // div, not nav: ARIA does not allow the tablist role on a landmark element.
+    <div className="tabs" role="tablist" aria-label="Workbench sections">
       {TABS.map((t, i) => (
         <button
           key={t.id}
@@ -66,6 +67,6 @@ export function Tabs({ active, onChange }: TabsProps) {
           {t.label}
         </button>
       ))}
-    </nav>
+    </div>
   )
 }

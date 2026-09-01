@@ -31,9 +31,11 @@ const SCORE_METHOD_LABELS: Record<ScoreMethod, string> = {
  * Bias color: the sign already shows direction, the color shows severity.
  * Within 1% of volume reads as calibrated (muted); 5% or more in either
  * direction is a real over- or under-forecast (bad); in between stays default.
+ * Thresholds apply to the value as displayed (fmtSignedPct, one decimal), so
+ * a cell showing -1.0% is never colored as if it were still under 1%.
  */
 function biasClass(bias: number): string {
-  const abs = Math.abs(bias)
+  const abs = Math.abs(Math.round(bias * 1000) / 1000)
   if (abs < 0.01) return ' delta-neutral'
   if (abs >= 0.05) return ' delta-bad'
   return ''
@@ -56,6 +58,9 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
   const runToken = useRef(0)
   useEffect(() => {
     runToken.current++
+    // Sync reset on dataset change: cached backtests belong to the old data
+    // and nothing external will fire to clear them.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- invalidate cached results for the previous dataset
     setResults({})
     setRunError(null)
   }, [records])
@@ -301,13 +306,13 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
           </div>
           <div className="legend-row">
             {SCORE_METHODS.map((m) => (
-              <label key={m} style={{ cursor: 'default' }}>
+              <span key={m} className="legend-item">
                 <span
                   className="swatch"
                   style={{ background: m === 'equal' ? EXTRA_COLORS.equal : METHOD_COLORS[m] }}
                 />
                 {SCORE_METHOD_LABELS[m]}
-              </label>
+              </span>
             ))}
           </div>
           <LeadTimeChart rows={leadRows} theme={theme} />

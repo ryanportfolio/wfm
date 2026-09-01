@@ -176,7 +176,10 @@ function useGrid(
   if (sessionRef.current === null) sessionRef.current = createStaffingSession()
 
   useEffect(() => {
+    // The sync setState calls below reset request state when the scenario
+    // changes; the grid itself arrives from the worker's async response.
     if (!debounced) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the grid when the scenario is removed
       setGrid(null)
       setError(null)
       return
@@ -212,13 +215,18 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
   const isChat = queue.toLowerCase().includes('chat')
   const intervalForecast = forecast.intervalForecast
 
+  // Only intervalSec and queue from this base ever reach the engine:
+  // toEngineScenario always supplies mode, slPct, slSeconds, patienceSec,
+  // shrinkage, occupancyCap, and chatConcurrency, so the service fields here
+  // are placeholders satisfying StaffingConfig, sourced from DEFAULT_SCENARIO
+  // so they cannot drift from the real defaults.
   const baseConfig = useMemo<StaffingConfig>(
     () => ({
-      mode: 'erlangA',
-      slPct: 0.8,
-      slSeconds: 20,
-      patienceSec: 120,
-      shrinkage: 0.3,
+      mode: DEFAULT_SCENARIO.mode,
+      slPct: DEFAULT_SCENARIO.slPct / 100,
+      slSeconds: DEFAULT_SCENARIO.slSeconds,
+      patienceSec: DEFAULT_SCENARIO.patienceSec,
+      shrinkage: DEFAULT_SCENARIO.shrinkagePct / 100,
       intervalSec: deriveIntervalSec(intervalForecast),
       queue,
     }),
@@ -607,7 +615,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             </select>
           </div>
           {chartRows.length > 0 ? (
-            <StaffingIntervalChart rows={chartRows} theme={theme} />
+            <StaffingIntervalChart rows={chartRows} theme={theme} fixedMode={fixedA} />
           ) : (
             <div className="note">
               {errorA ? 'No staffing grid to show; see the error above.' : 'Computing staffing grid...'}

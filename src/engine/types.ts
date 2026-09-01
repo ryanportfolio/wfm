@@ -23,25 +23,10 @@ export interface DailySeries {
   points: DailyPoint[]
 }
 
-export interface IntradayProfile {
-  queue: string
-  /** 0 = Sunday .. 6 = Saturday */
-  weekday: number
-  /** One share per interval of the day, summing to 1 */
-  shares: number[]
-}
-
 export interface ForecastPoint {
   ts: string
   offered: number
   aht: number
-}
-
-export interface Forecast {
-  queue: string
-  method: string
-  daily: DailyPoint[]
-  intervals: ForecastPoint[]
 }
 
 export interface BacktestScore {

@@ -1,7 +1,7 @@
 import type { DailyPoint, IntervalRecord } from './types'
 import type { QueueDay } from './series'
 import { dayTotals, daysToDailyPoints, groupQueueDays } from './series'
-import { usHolidays } from './sampleData'
+import { usHolidays } from './holidays'
 
 /**
  * MAD-based outlier cleaning.

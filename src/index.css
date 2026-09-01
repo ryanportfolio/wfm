@@ -505,10 +505,14 @@ input[type="checkbox"] {
   margin-bottom: 8px;
 }
 
-.legend-row label {
+.legend-row label,
+.legend-row .legend-item {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.legend-row label {
   cursor: pointer;
 }
 

@@ -730,8 +730,10 @@ input[type="checkbox"] {
   border-radius: var(--radius-input);
   padding: 12px;
   box-shadow: var(--shadow-md);
-  /* The wait before the offer appears is a delay here, so the app runs no timer. */
-  animation: tour-rise 220ms var(--tour-ease) 900ms both;
+  /* The wait before the offer appears is a delay here, so the app runs no
+     timer. The keyframes carry visibility so the backwards fill also keeps the
+     invisible chip from catching clicks during the delay. */
+  animation: tour-nudge-rise 220ms var(--tour-ease) 900ms both;
 }
 
 .tour-nudge-text {
@@ -936,6 +938,30 @@ input[type="checkbox"] {
   }
 }
 
+@keyframes tour-nudge-rise {
+  from {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+}
+
+@keyframes tour-nudge-fade-in {
+  from {
+    opacity: 0;
+    visibility: hidden;
+  }
+  to {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
 @keyframes tour-fade-in {
   from {
     opacity: 0;
@@ -1008,7 +1034,7 @@ input[type="checkbox"] {
 
   /* Keep the wait before the offer; drop the slide. */
   .tour-nudge {
-    animation: tour-fade-in 220ms ease 900ms both;
+    animation: tour-nudge-fade-in 220ms ease 900ms both;
   }
 }
 

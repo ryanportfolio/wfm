@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ForecastPoint } from '../engine/types'
 import type { ForecastResult } from '../engine/forecastPipeline'
 import type { StaffingConfig, StaffingGridResult } from '../engine/staffing'
-import { applyScenario } from '../engine/staffing'
+import type { StaffingSession } from './workerClient'
+import { createStaffingSession, isSuperseded } from './workerClient'
 import type { ChartTheme } from './theme'
 import { ScenarioPanel, DEFAULT_SCENARIO, toEngineScenario } from './controls/ScenarioPanel'
 import type { ScenarioState } from './controls/ScenarioPanel'
@@ -169,6 +170,10 @@ function useGrid(
   const [computing, setComputing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
+  // One worker session per hook instance: a new request drops this session's
+  // previous in-flight one, so scenario A and B never cancel each other.
+  const sessionRef = useRef<StaffingSession | null>(null)
+  if (sessionRef.current === null) sessionRef.current = createStaffingSession()
 
   useEffect(() => {
     if (!debounced) {
@@ -177,19 +182,27 @@ function useGrid(
       return
     }
     setComputing(true)
-    // Yield so slider interaction stays responsive while Erlang math runs.
-    const id = setTimeout(() => {
-      try {
-        setGrid(applyScenario(intervalForecast, toEngineScenario(debounced, isChat), baseConfig))
+    // The Erlang grid solves in the compute worker; slider interaction stays
+    // responsive. A newer request supersedes this one, and the stale flag
+    // drops any response that lands after this effect was cleaned up.
+    let stale = false
+    sessionRef
+      .current!(intervalForecast, toEngineScenario(debounced, isChat), baseConfig)
+      .then((g) => {
+        if (stale) return
+        setGrid(g)
         setError(null)
-      } catch (err) {
+        setComputing(false)
+      })
+      .catch((err) => {
+        if (stale || isSuperseded(err)) return
         setGrid(null)
         setError(errorMessage(err))
-      } finally {
         setComputing(false)
-      }
-    }, 0)
-    return () => clearTimeout(id)
+      })
+    return () => {
+      stale = true
+    }
   }, [debounced, intervalForecast, isChat, baseConfig, attempt])
 
   return { grid, computing, error, retry: () => setAttempt((a) => a + 1) }

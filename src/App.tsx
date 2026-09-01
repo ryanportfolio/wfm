@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { IntervalRecord } from './engine/types'
 import type { CsvError } from './engine/csv'
 import { parseCsv } from './engine/csv'
 import { errorMessage } from './ui/errors'
 import { generateSampleData } from './engine/sampleData'
-import { runForecast } from './engine/forecastPipeline'
+import { forecastInWorker } from './ui/workerClient'
 import type { ForecastResult } from './engine/forecastPipeline'
 import { Tabs } from './ui/Tabs'
 import type { TabId } from './ui/Tabs'
@@ -38,18 +38,41 @@ export default function App() {
   // The chosen queue survives data reloads when it still exists.
   const queue = queues.includes(queueChoice) ? queueChoice : queues[0] ?? ''
 
-  // Memoized per (data, queue, horizon) so tab switches never recompute.
+  // Cached per (queue, horizon) so tab switches never recompute; the cache is
+  // cleared when a new dataset loads. Cache misses compute in the worker, so
+  // the forecast arrives async and the UI shows a computing card meanwhile.
   const forecastCache = useRef(new Map<string, ForecastResult>())
-  const forecast = useMemo(() => {
-    if (!records || !queue) return null
-    const key = `${queue}|${horizon}`
-    let f = forecastCache.current.get(key)
-    if (!f) {
-      f = runForecast(records, queue, { horizonDays: horizon })
-      forecastCache.current.set(key, f)
+  const [forecast, setForecast] = useState<ForecastResult | null>(null)
+  const [forecastError, setForecastError] = useState<string | null>(null)
+  useEffect(() => {
+    if (!records || !queue) {
+      setForecast(null)
+      return
     }
-    return f
+    const key = `${queue}|${horizon}`
+    const cached = forecastCache.current.get(key)
+    if (cached) {
+      setForecast(cached)
+      return
+    }
+    setForecast(null)
+    let stale = false
+    forecastInWorker(records, queue, { horizonDays: horizon })
+      .then((f) => {
+        forecastCache.current.set(key, f)
+        if (!stale) setForecast(f)
+      })
+      .catch((err) => {
+        if (!stale) setForecastError(errorMessage(err))
+      })
+    return () => {
+      stale = true
+    }
   }, [records, queue, horizon])
+
+  // Surface a failed forecast the same way the old synchronous throw did:
+  // through the app-level error boundary.
+  if (forecastError) throw new Error(`Forecast failed: ${forecastError}`)
 
   const setData = (recs: IntervalRecord[], errors: CsvError[], label: string) => {
     setCsvErrors(errors)
@@ -95,6 +118,15 @@ export default function App() {
   }
 
   const hasData = records !== null && queue !== ''
+
+  // Shown in forecast-dependent tabs while the worker computes a cache miss.
+  const computingCard = (
+    <div className="card">
+      <p className="note" style={{ margin: 0 }}>
+        <span className="spinner" /> Computing the forecast...
+      </p>
+    </div>
+  )
 
   return (
     <>
@@ -153,6 +185,8 @@ export default function App() {
               theme={theme}
               onHorizonChange={setHorizon}
             />
+          ) : hasData ? (
+            computingCard
           ) : (
             <EmptyState
               title="No data to forecast yet"
@@ -187,6 +221,8 @@ export default function App() {
         >
           {hasData && forecast ? (
             <StaffingTab forecast={forecast} queue={queue} horizon={horizon} theme={theme} />
+          ) : hasData ? (
+            computingCard
           ) : (
             <EmptyState
               title="No data to staff against yet"

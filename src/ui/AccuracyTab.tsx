@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BacktestReport, BacktestScore, IntervalRecord } from '../engine/types'
 import type { BacktestScoreDetailed } from '../engine/backtest'
-import { runBacktest } from '../engine/forecastPipeline'
+import { backtestInWorker } from './workerClient'
 import type { ChartTheme, UiMethod } from './theme'
 import { EXTRA_COLORS, METHOD_COLORS, METHOD_SHORT, UI_METHODS } from './theme'
 import { WapeBarChart } from './charts/WapeBarChart'
@@ -49,9 +49,13 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
   const [results, setResults] = useState<Record<string, BacktestReport[]>>({})
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
+  const [progress, setProgress] = useState<string | null>(null)
 
-  // New dataset invalidates every cached backtest.
+  // New dataset invalidates every cached backtest; bumping the token makes
+  // any still-running backtest of the old dataset drop its result on arrival.
+  const runToken = useRef(0)
   useEffect(() => {
+    runToken.current++
     setResults({})
     setRunError(null)
   }, [records])
@@ -59,19 +63,24 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
   const reports = results[queue]
 
   const run = () => {
+    const token = runToken.current
     setRunning(true)
     setRunError(null)
-    // Yield a frame so the spinner paints before the backtest blocks the thread.
-    setTimeout(() => {
-      try {
-        const out = runBacktest(records, queue, { folds: 8, horizonDays: 28 })
-        setResults((prev) => ({ ...prev, [queue]: out }))
-      } catch (err) {
-        setRunError(errorMessage(err))
-      } finally {
+    setProgress(null)
+    // The backtest runs in the compute worker, so the UI stays interactive.
+    backtestInWorker(records, queue, { folds: 8, horizonDays: 28 }, (fold, totalFolds) =>
+      setProgress(`fold ${fold} of ${totalFolds}`),
+    )
+      .then((out) => {
+        if (token === runToken.current) setResults((prev) => ({ ...prev, [queue]: out }))
+      })
+      .catch((err) => {
+        if (token === runToken.current) setRunError(errorMessage(err))
+      })
+      .finally(() => {
         setRunning(false)
-      }
-    }, 30)
+        setProgress(null)
+      })
   }
 
   const scoreOf = useMemo(() => {
@@ -177,7 +186,8 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
           <button type="button" className="btn btn-primary" disabled={running} onClick={run}>
             {running ? (
               <>
-                <span className="spinner" /> Running backtest...
+                <span className="spinner" />{' '}
+                {progress ? `Running backtest, ${progress}...` : 'Running backtest...'}
               </>
             ) : reports ? (
               'Rerun backtest'

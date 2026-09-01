@@ -84,11 +84,23 @@ export function runBacktest(
   records: IntervalRecord[],
   queue: string,
   opts: BacktestOpts = {},
+  /** Called before each fold runs: (1-based fold about to run, folds that will run). */
+  onProgress?: (fold: number, totalFolds: number) => void,
 ): BacktestReport[] {
   const folds = opts.folds ?? 8
   const horizonDays = opts.horizonDays ?? 28
   const stepDays = opts.stepDays ?? horizonDays
   const days = groupQueueDays(records, queue)
+
+  // How many of the requested folds actually fit the history, so progress
+  // reads "fold 3 of 8" against the true total.
+  let plannedFolds = 0
+  while (
+    plannedFolds < folds &&
+    days.length - horizonDays - plannedFolds * stepDays >= MIN_TRAIN_DAYS
+  ) {
+    plannedFolds++
+  }
 
   const pooled: Record<MethodName, Record<'interval' | 'daily' | 'weekly', Pooled>> = {
     sma: { interval: newPooled(), daily: newPooled(), weekly: newPooled() },
@@ -115,6 +127,7 @@ export function runBacktest(
   for (let f = 0; f < folds; f++) {
     const originIdx = days.length - horizonDays - f * stepDays
     if (originIdx < MIN_TRAIN_DAYS) break
+    onProgress?.(f + 1, plannedFolds)
     const trainDays = days.slice(0, originIdx)
     const testDays = days.slice(originIdx, originIdx + horizonDays)
 

@@ -143,6 +143,7 @@ export function runBacktest(
   records: IntervalRecord[],
   queue: string,
   opts: BacktestOpts = {},
+  onProgress?: (fold: number, totalFolds: number) => void,
 ): BacktestReport[] {
-  return runBacktestImpl(records, queue, opts)
+  return runBacktestImpl(records, queue, opts, onProgress)
 }

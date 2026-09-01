@@ -9,6 +9,11 @@
  * The third section exists only while scenario B is open. Dataset contents
  * never go in the URL.
  *
+ * v1 stays the version: fixed-staff mode rides in new optional per-scenario
+ * keys (`g` staffing mode, `f` fixed heads) that old builds skip as unknown,
+ * and the cost rate is a separate `r` hash param old builds never read, so
+ * old links decode unchanged and new links degrade gracefully.
+ *
  * Decoding is forgiving per field (unknown keys are skipped, numeric values
  * are snapped to the slider's step and range) but rejects structurally
  * malformed input (wrong version, bad token shape) by returning null, so
@@ -33,6 +38,7 @@ interface NumSpec {
 
 // Ranges and steps mirror the sliders in ScenarioPanel.
 const NUM_SPECS: NumSpec[] = [
+  { key: 'f', field: 'fixedHeads', min: 0, max: 200, step: 1 },
   { key: 's', field: 'slPct', min: 50, max: 95, step: 1 },
   { key: 'w', field: 'slSeconds', min: 10, max: 60, step: 5 },
   { key: 'p', field: 'patienceSec', min: 30, max: 300, step: 10 },
@@ -57,6 +63,9 @@ function encodeSection(state: ScenarioState): string {
   }
   if (state.useAbandonCap !== DEFAULT_SCENARIO.useAbandonCap) {
     tokens.push(`u:${state.useAbandonCap ? 1 : 0}`)
+  }
+  if (state.staffMode !== DEFAULT_SCENARIO.staffMode) {
+    tokens.push(`g:${state.staffMode === 'fixed' ? 'f' : 't'}`)
   }
   for (const spec of NUM_SPECS) {
     if (state[spec.field] !== DEFAULT_SCENARIO[spec.field]) {
@@ -104,6 +113,11 @@ function decodeSection(text: string): ScenarioState | null {
       else if (value === '0') state.useAbandonCap = false
       continue
     }
+    if (key === 'g') {
+      if (value === 'f') state.staffMode = 'fixed'
+      else if (value === 't') state.staffMode = 'target'
+      continue
+    }
     const spec = NUM_SPECS.find((s) => s.key === key)
     if (!spec) continue // Unknown key: skip, so future additions stay readable.
     const n = Number(value)
@@ -136,4 +150,46 @@ export function decodeScenarioParam(raw: string | null | undefined): DecodedScen
 export function scenariosFromHash(hash: string): DecodedScenarios | null {
   const param = new URLSearchParams(hash.replace(/^#/, '')).get('s')
   return decodeScenarioParam(param)
+}
+
+/**
+ * Parse a raw `r` param value into a cost-per-scheduled-hour rate. Null for
+ * anything unusable (missing, non-numeric, zero, negative); rounded to cents
+ * and capped so a mangled link cannot produce absurd numbers.
+ */
+export function costRateFromParam(raw: string | null | undefined): number | null {
+  if (!raw) return null
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return Math.min(1_000_000, Math.round(n * 100) / 100)
+}
+
+export interface StaffingUrlState {
+  scenarios: DecodedScenarios | null
+  costPerHour: number | null
+}
+
+/**
+ * Full staffing-tab hash: `s=<scenario param>` plus `r=<rate>` when a cost
+ * rate is set. '' when everything is at defaults and no rate is set.
+ */
+export function encodeStaffingHash(
+  a: ScenarioState,
+  b: ScenarioState | null,
+  costPerHour: number | null,
+): string {
+  const parts: string[] = []
+  const s = encodeScenarioParam(a, b)
+  if (s) parts.push(`s=${s}`)
+  if (costPerHour !== null && costPerHour > 0) parts.push(`r=${costPerHour}`)
+  return parts.join('&')
+}
+
+/** Read scenarios and cost rate from a location hash like "#s=v1;g:f,f:12&r=28". */
+export function staffingUrlFromHash(hash: string): StaffingUrlState {
+  const params = new URLSearchParams(hash.replace(/^#/, ''))
+  return {
+    scenarios: decodeScenarioParam(params.get('s')),
+    costPerHour: costRateFromParam(params.get('r')),
+  }
 }

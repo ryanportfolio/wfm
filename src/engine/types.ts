@@ -112,6 +112,11 @@ export interface StaffingInterval {
   serviceLevel: number
   asa: number
   abandonRate: number
+  /**
+   * Fixed-staff mode, Erlang C only: bodies on phones <= offered load, so the
+   * steady-state queue grows without bound. Absent in staff-to-target mode.
+   */
+  unstable?: boolean
 }
 
 export interface StaffingGrid {

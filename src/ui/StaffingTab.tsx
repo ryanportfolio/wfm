@@ -6,7 +6,7 @@ import { applyScenario } from '../engine/staffing'
 import type { ChartTheme } from './theme'
 import { ScenarioPanel, DEFAULT_SCENARIO, toEngineScenario } from './controls/ScenarioPanel'
 import type { ScenarioState } from './controls/ScenarioPanel'
-import { encodeScenarioParam, isDefaultScenario, scenariosFromHash } from './scenarioUrl'
+import { encodeStaffingHash, isDefaultScenario, staffingUrlFromHash } from './scenarioUrl'
 import { staffingDailyCsv, staffingIntervalCsv } from '../engine/exportCsv'
 import { downloadTextFile, fileSlug } from './download'
 import { StaffingIntervalChart } from './charts/StaffingIntervalChart'
@@ -38,6 +38,8 @@ interface GridSummary {
   peakScheduled: number
   totalScheduledFte: number
   weightedOcc: number
+  /** Volume-weighted SL across the whole horizon. */
+  weightedSl: number
 }
 
 function deriveIntervalSec(points: readonly ForecastPoint[]): number {
@@ -60,10 +62,13 @@ function summarize(
     asaW: number
     abW: number
     w: number
+    /** An open interval where nothing is ever answered: day ASA shows n/a. */
+    asaInf: boolean
   }
   const byDate = new Map<string, Acc>()
   let peakScheduled = 0
   let occW = 0
+  let slWAll = 0
   let wSum = 0
 
   grid.intervals.forEach((iv, i) => {
@@ -84,6 +89,7 @@ function summarize(
         asaW: 0,
         abW: 0,
         w: 0,
+        asaInf: false,
       }
       byDate.set(date, d)
     }
@@ -91,10 +97,12 @@ function summarize(
     if (iv.required > d.peakRequired) d.peakRequired = iv.required
     d.slW += iv.serviceLevel * offered
     d.asaW += (Number.isFinite(iv.asa) ? iv.asa : 0) * offered
+    if (!Number.isFinite(iv.asa) && offered > 0) d.asaInf = true
     d.abW += iv.abandonRate * offered
     d.w += offered
     if (iv.scheduled > peakScheduled) peakScheduled = iv.scheduled
     occW += iv.occupancy * offered
+    slWAll += iv.serviceLevel * offered
     wSum += offered
   })
 
@@ -115,7 +123,7 @@ function summarize(
     scheduledFte: d.scheduledFte,
     peakRequired: d.peakRequired,
     sl: d.w > 0 ? d.slW / d.w : 1,
-    asa: d.w > 0 ? d.asaW / d.w : 0,
+    asa: d.asaInf ? Infinity : d.w > 0 ? d.asaW / d.w : 0,
     abandon: d.w > 0 ? d.abW / d.w : 0,
   }))
   days.sort((a, b) => (a.date < b.date ? -1 : 1))
@@ -125,6 +133,7 @@ function summarize(
     peakScheduled,
     totalScheduledFte,
     weightedOcc: wSum > 0 ? occW / wSum : 0,
+    weightedSl: wSum > 0 ? slWAll / wSum : 1,
   }
 }
 
@@ -203,30 +212,42 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
     [intervalForecast, queue],
   )
 
-  // A shared link (#s=...) seeds the scenario state; otherwise defaults.
-  const [initialUrl] = useState(() => scenariosFromHash(window.location.hash))
-  const [stateA, setStateA] = useState<ScenarioState>(initialUrl?.a ?? DEFAULT_SCENARIO)
-  const [compare, setCompare] = useState(initialUrl?.b != null)
-  const [stateB, setStateB] = useState<ScenarioState | null>(initialUrl?.b ?? null)
+  // A shared link (#s=...&r=...) seeds scenarios and cost rate; otherwise defaults.
+  const [initialUrl] = useState(() => staffingUrlFromHash(window.location.hash))
+  const [stateA, setStateA] = useState<ScenarioState>(initialUrl.scenarios?.a ?? DEFAULT_SCENARIO)
+  const [compare, setCompare] = useState(initialUrl.scenarios?.b != null)
+  const [stateB, setStateB] = useState<ScenarioState | null>(initialUrl.scenarios?.b ?? null)
   const [selectedDay, setSelectedDay] = useState('')
   const [copied, setCopied] = useState(false)
 
-  // Keep the URL hash in sync (replaceState, so no history spam). Empty param
-  // means everything is at defaults; drop the hash entirely then.
-  const urlParam = useMemo(
-    () => encodeScenarioParam(stateA, compare ? stateB : null),
-    [stateA, stateB, compare],
+  // Cost per scheduled hour. Raw text so partial input ("0.", "12.") survives
+  // typing; the parsed rate is null (feature off) until the text is a positive
+  // number.
+  const [costText, setCostText] = useState(() =>
+    initialUrl.costPerHour !== null ? String(initialUrl.costPerHour) : '',
   )
-  const debouncedParam = useDebounced(urlParam, 200)
+  const costRate = useMemo(() => {
+    if (costText.trim() === '') return null
+    const n = Number(costText)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [costText])
+
+  // Keep the URL hash in sync (replaceState, so no history spam). Empty hash
+  // means everything is at defaults; drop it entirely then.
+  const urlHash = useMemo(
+    () => encodeStaffingHash(stateA, compare ? stateB : null, costRate),
+    [stateA, stateB, compare, costRate],
+  )
+  const debouncedHash = useDebounced(urlHash, 200)
   useEffect(() => {
     const base = window.location.pathname + window.location.search
-    window.history.replaceState(null, '', debouncedParam ? `${base}#s=${debouncedParam}` : base)
-  }, [debouncedParam])
+    window.history.replaceState(null, '', debouncedHash ? `${base}#${debouncedHash}` : base)
+  }, [debouncedHash])
 
   const clipboardOk = typeof navigator !== 'undefined' && !!navigator.clipboard
   const copyLink = () => {
     const { origin, pathname, search } = window.location
-    const url = `${origin}${pathname}${search}${urlParam ? `#s=${urlParam}` : ''}`
+    const url = `${origin}${pathname}${search}${urlHash ? `#${urlHash}` : ''}`
     navigator.clipboard.writeText(url).then(
       () => {
         setCopied(true)
@@ -258,6 +279,25 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
     [gridB, stateB, intervalForecast],
   )
 
+  const fixedA = stateA.staffMode === 'fixed'
+  const anyFixed = fixedA || (compare && stateB?.staffMode === 'fixed')
+  const slTargetA = stateA.slPct / 100
+
+  // First switch to "what I have" with heads still unset (0): seed from the
+  // peak scheduled heads the target solve produced, the number an analyst
+  // would start bargaining from.
+  const seedHeads = (
+    state: ScenarioState,
+    patch: Partial<ScenarioState>,
+    summary: GridSummary | null,
+  ): ScenarioState => {
+    const next = { ...state, ...patch }
+    if (patch.staffMode === 'fixed' && next.fixedHeads === 0 && summary) {
+      next.fixedHeads = Math.min(200, Math.max(1, Math.ceil(summary.peakScheduled)))
+    }
+    return next
+  }
+
   const dates = useMemo(() => (summaryA ? summaryA.days.map((d) => d.date) : []), [summaryA])
   const day = dates.includes(selectedDay) ? selectedDay : dates[0] ?? ''
 
@@ -265,8 +305,17 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
     if (!gridA || !day) return []
     return gridA.intervals
       .filter((iv) => iv.ts.startsWith(day))
-      .map((iv) => ({ time: iv.ts.slice(11, 16), scheduled: iv.scheduled, required: iv.required }))
-  }, [gridA, day])
+      .map((iv) => ({
+        time: iv.ts.slice(11, 16),
+        scheduled: iv.scheduled,
+        required: iv.required,
+        understaffed: fixedA && iv.serviceLevel < slTargetA,
+        unstable: iv.unstable === true,
+      }))
+  }, [gridA, day, fixedA, slTargetA])
+
+  const dayUnderstaffed = chartRows.filter((r) => r.understaffed).length
+  const dayUnstable = chartRows.filter((r) => r.unstable).length
 
   const bDailyByDate = useMemo(() => {
     const m = new Map<string, number>()
@@ -293,7 +342,10 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
     )
   }
   const downloadDaily = (summary: GridSummary, suffix: string) => {
-    downloadTextFile(`staffing-daily-${fileSlug(queue)}${suffix}.csv`, staffingDailyCsv(summary.days))
+    downloadTextFile(
+      `staffing-daily-${fileSlug(queue)}${suffix}.csv`,
+      staffingDailyCsv(summary.days, costRate ?? undefined),
+    )
   }
 
   return (
@@ -303,7 +355,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           title={compare ? 'Scenario A' : 'Scenario'}
           state={stateA}
           isChatQueue={isChat}
-          onChange={(patch) => setStateA((s) => ({ ...s, ...patch }))}
+          onChange={(patch) => setStateA((s) => seedHeads(s, patch, summaryA))}
           onReset={() => setStateA({ ...DEFAULT_SCENARIO })}
           isDefault={isDefaultScenario(stateA)}
         />
@@ -318,7 +370,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                 title="Scenario B"
                 state={stateB}
                 isChatQueue={isChat}
-                onChange={(patch) => setStateB((s) => (s ? { ...s, ...patch } : s))}
+                onChange={(patch) => setStateB((s) => (s ? seedHeads(s, patch, summaryB ?? summaryA) : s))}
                 onReset={() => setStateB({ ...DEFAULT_SCENARIO })}
                 isDefault={isDefaultScenario(stateB)}
               />
@@ -328,6 +380,28 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             </button>
           </>
         )}
+        <div className="card">
+          <div className="slider-row">
+            <div className="slider-head">
+              <label htmlFor="cost-rate">Cost per scheduled hour</label>
+            </div>
+            <input
+              id="cost-rate"
+              className="num-input"
+              type="number"
+              min={0}
+              step="0.01"
+              inputMode="decimal"
+              placeholder="off"
+              value={costText}
+              onChange={(e) => setCostText(e.target.value)}
+            />
+            <div className="slider-hint">
+              Scheduled FTE-hours times this rate, in your currency unit. Plain multiplication:
+              no overtime or loaded-cost math. Leave blank to hide cost.
+            </div>
+          </div>
+        </div>
         <button
           type="button"
           className="btn"
@@ -403,6 +477,12 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                 Scheduled <Term term="fte">FTE-hours</Term>, horizon total
               </div>
               <div className="metric-value">{fmtInt(summaryA.totalScheduledFte)}</div>
+              {costRate !== null && (
+                <div className="metric-sub">
+                  cost {fmtInt(summaryA.totalScheduledFte * costRate)}: scheduled hours x{' '}
+                  {fmtNum(costRate, 2)}
+                </div>
+              )}
               {summaryB && (
                 <div
                   className={`metric-delta ${deltaClass(
@@ -414,7 +494,47 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                   B minus A: {fmtSigned(summaryB.totalScheduledFte - summaryA.totalScheduledFte, 0)}
                 </div>
               )}
+              {costRate !== null && summaryB && (
+                <div
+                  className={`metric-delta ${deltaClass(
+                    (summaryB.totalScheduledFte - summaryA.totalScheduledFte) * costRate,
+                    true,
+                    0.5,
+                  )}`}
+                >
+                  cost B minus A:{' '}
+                  {fmtSigned((summaryB.totalScheduledFte - summaryA.totalScheduledFte) * costRate, 0)}
+                </div>
+              )}
             </div>
+            {anyFixed && (
+              <div className="card">
+                <div className="metric-label">
+                  Projected <Term term="sl">SL</Term>
+                </div>
+                <div
+                  className={`metric-value ${
+                    summaryA.weightedSl >= slTargetA ? 'delta-good' : 'delta-bad'
+                  }`}
+                >
+                  {fmtPct(summaryA.weightedSl)}
+                </div>
+                <div className="metric-sub">
+                  volume-weighted, vs the {fmtPct(slTargetA, 0)} target
+                </div>
+                {summaryB && (
+                  <div
+                    className={`metric-delta ${deltaClass(
+                      summaryB.weightedSl - summaryA.weightedSl,
+                      false,
+                      0.0005,
+                    )}`}
+                  >
+                    B minus A: {fmtSigned((summaryB.weightedSl - summaryA.weightedSl) * 100, 1)} pts
+                  </div>
+                )}
+              </div>
+            )}
             <div className="card">
               <div className="metric-label">
                 Weighted avg <Term term="occupancy">occupancy</Term>
@@ -436,7 +556,9 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           <div className="card-title">
             <h2>Interval staffing{compare ? ': scenario A' : ''}</h2>
             <span className="card-subtitle">
-              Bars: scheduled agents. Line: bodies required on the phones.
+              {fixedA
+                ? 'Bars: your scheduled heads (red where the SL target is missed). Line: bodies needed on the phones for the target.'
+                : 'Bars: scheduled agents. Line: bodies required on the phones.'}
             </span>
             <span style={{ flex: 1 }} />
             <button
@@ -478,6 +600,18 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               {errorA ? 'No staffing grid to show; see the error above.' : 'Computing staffing grid...'}
             </div>
           )}
+          {fixedA && chartRows.length > 0 && (
+            <p className="note" style={{ marginBottom: 0 }}>
+              {dayUnderstaffed > 0
+                ? `${dayUnderstaffed} of ${chartRows.length} intervals this day miss the ${fmtPct(
+                    slTargetA,
+                    0,
+                  )} target at your staffing.`
+                : `All ${chartRows.length} intervals this day meet the ${fmtPct(slTargetA, 0)} target at your staffing.`}
+              {dayUnstable > 0 &&
+                ` In ${dayUnstable} of them the queue grows without bound at this volume (Erlang C: load meets or exceeds bodies on phones).`}
+            </p>
+          )}
         </div>
 
         {summaryA && (
@@ -517,6 +651,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                     <th className="num">Contacts</th>
                     <th className="num">Required FTE-h</th>
                     <th className="num">Scheduled FTE-h</th>
+                    {costRate !== null && <th className="num">Cost</th>}
                     <th className="num">Peak on phones</th>
                     <th className="num">
                       <Term term="sl">SL</Term>
@@ -538,8 +673,17 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                       <td className="num">{fmtInt(d.contacts)}</td>
                       <td className="num">{fmtNum(d.requiredFte, 1)}</td>
                       <td className="num">{fmtNum(d.scheduledFte, 1)}</td>
+                      {costRate !== null && (
+                        <td className="num">{fmtInt(d.scheduledFte * costRate)}</td>
+                      )}
                       <td className="num">{fmtInt(d.peakRequired)}</td>
-                      <td className="num">{fmtPct(d.sl)}</td>
+                      <td
+                        className={`num${
+                          fixedA ? (d.sl >= slTargetA ? ' delta-good' : ' delta-bad') : ''
+                        }`}
+                      >
+                        {fmtPct(d.sl)}
+                      </td>
                       <td className="num">{fmtSec(d.asa)}</td>
                       <td className="num">{fmtPct(d.abandon)}</td>
                       {summaryB && (
@@ -574,7 +718,11 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             better here than it would in reality. For chat queues, concurrency divides AHT, treating
             one agent on 2 chats as one agent twice as fast; that ignores the extra variability of
             juggling chats and assumes AHT was measured at that concurrency. Shrinkage grosses up by
-            division: at 30%, you schedule 10 hours to get 7 on the queue.
+            division: at 30%, you schedule 10 hours to get 7 on the queue. In "what I have" mode the
+            flat heads apply to every interval with volume; bodies on phones = heads x (1 -
+            shrinkage), rounded down to whole agents, and Erlang C marks an interval unstable when
+            load reaches the bodies. Cost is scheduled hours x your rate, nothing more: no overtime,
+            benefits, or loaded-cost modeling.
           </p>
         </div>
       </div>

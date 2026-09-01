@@ -1,6 +1,7 @@
 import {
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
@@ -17,6 +18,10 @@ export interface StaffingRow {
   time: string
   scheduled: number
   required: number
+  /** Fixed-staff mode: projected SL misses the target here; bar turns red. */
+  understaffed?: boolean
+  /** Fixed-staff Erlang C: queue grows without bound at this volume. */
+  unstable?: boolean
 }
 
 interface StaffingIntervalChartProps {
@@ -60,7 +65,11 @@ export function StaffingIntervalChart({ rows, theme }: StaffingIntervalChartProp
           fill={EXTRA_COLORS.staffing}
           fillOpacity={0.75}
           isAnimationActive={false}
-        />
+        >
+          {rows.map((row) => (
+            <Cell key={row.time} fill={row.understaffed ? theme.bad : EXTRA_COLORS.staffing} />
+          ))}
+        </Bar>
         <Line
           type="stepAfter"
           dataKey="required"

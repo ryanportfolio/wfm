@@ -44,6 +44,8 @@ export interface ChartTheme {
   actual: string
   tooltipBg: string
   tooltipBorder: string
+  /** Matches the CSS --bad token, for marks that flag a miss. */
+  bad: string
 }
 
 const LIGHT: ChartTheme = {
@@ -53,6 +55,7 @@ const LIGHT: ChartTheme = {
   actual: '#4b5563',
   tooltipBg: '#ffffff',
   tooltipBorder: '#d8dce3',
+  bad: '#b3261e',
 }
 
 const DARK: ChartTheme = {
@@ -62,6 +65,7 @@ const DARK: ChartTheme = {
   actual: '#a3adbd',
   tooltipBg: '#1c2129',
   tooltipBorder: '#333b47',
+  bad: '#ef6a5f',
 }
 
 /** User theme choice. 'system' follows the OS preference. */

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ForecastPoint } from './types'
-import { applyScenario, buildStaffingGrid, grossUp } from './staffing'
+import { applyScenario, buildStaffingGrid, grossUp, projectAtStaffing } from './staffing'
 import type { StaffingConfig } from './staffing'
+import { requiredAgents } from './erlang'
 
 const baseConfig: StaffingConfig = {
   mode: 'erlangC',
@@ -104,6 +105,129 @@ describe('buildStaffingGrid', () => {
 
   it('rejects shrinkage >= 1', () => {
     expect(() => buildStaffingGrid(forecast, undefined, { ...baseConfig, shrinkage: 1 })).toThrow()
+  })
+})
+
+describe('projectAtStaffing', () => {
+  // Peak interval of the shared forecast: 360 calls * 240 s / 1800 s -> A = 48.
+  const project = (mode: 'erlangC' | 'erlangA', n: number) =>
+    projectAtStaffing(mode, 360, 240, 1800, 20, n, 120)
+
+  it('zero volume: perfect SL, everything idle', () => {
+    const p = projectAtStaffing('erlangC', 0, 240, 1800, 20, 10)
+    expect(p).toEqual({ sl: 1, asa: 0, occupancy: 0, abandonPct: 0, unstable: false })
+  })
+
+  it('volume with no staff: SL 0, infinite ASA, saturated', () => {
+    const c = project('erlangC', 0)
+    expect(c.sl).toBe(0)
+    expect(c.asa).toBe(Infinity)
+    expect(c.occupancy).toBe(1)
+    expect(c.abandonPct).toBe(0)
+    expect(c.unstable).toBe(true)
+
+    const a = project('erlangA', 0)
+    expect(a.sl).toBe(0)
+    expect(a.asa).toBe(Infinity)
+    expect(a.abandonPct).toBe(1) // with patience, everyone eventually abandons
+    expect(a.unstable).toBe(false)
+  })
+
+  it('Erlang C at N <= A is unstable: SL 0, occupancy clamped at 1', () => {
+    const p = project('erlangC', 48) // N = A = 48
+    expect(p.unstable).toBe(true)
+    expect(p.sl).toBe(0)
+    expect(p.asa).toBe(Infinity)
+    expect(p.occupancy).toBe(1)
+    expect(project('erlangC', 30).unstable).toBe(true)
+    expect(project('erlangC', 49).unstable).toBe(false)
+  })
+
+  it('Erlang A stays stable below the offered load and sheds via abandonment', () => {
+    const p = project('erlangA', 40) // below A = 48
+    expect(p.unstable).toBe(false)
+    expect(p.sl).toBeGreaterThan(0)
+    expect(p.sl).toBeLessThan(0.8)
+    expect(p.abandonPct).toBeGreaterThan(0.1)
+    expect(p.occupancy).toBeLessThanOrEqual(1)
+  })
+
+  it('matches requiredAgents at the solved N and misses at N-1 (both modes)', () => {
+    const target = { pct: 0.8, seconds: 20 }
+    for (const mode of ['erlangC', 'erlangA'] as const) {
+      const r = requiredAgents(mode, 360, 240, 1800, target, 120)
+      const at = projectAtStaffing(mode, 360, 240, 1800, 20, r.bodies, 120)
+      expect(at.sl).toBeCloseTo(r.sl, 12)
+      expect(at.asa).toBeCloseTo(r.asa, 12)
+      expect(at.abandonPct).toBeCloseTo(r.abandonPct, 12)
+      expect(at.sl).toBeGreaterThanOrEqual(0.8)
+      const below = projectAtStaffing(mode, 360, 240, 1800, 20, r.bodies - 1, 120)
+      expect(below.sl).toBeLessThan(0.8)
+    }
+  })
+
+  it('floors fractional agents', () => {
+    expect(project('erlangC', 52.9)).toEqual(project('erlangC', 52))
+  })
+})
+
+describe('fixed-staff grid', () => {
+  const fixedConfig: StaffingConfig = { ...baseConfig, fixedScheduled: 20 }
+
+  it('applies flat heads to open intervals only and projects metrics at them', () => {
+    const grid = buildStaffingGrid(forecast, undefined, fixedConfig)
+    const target = buildStaffingGrid(forecast, undefined, baseConfig)
+    const [peak, offPeak, empty] = grid.intervals
+
+    // Required (the target-needs reference) is untouched by fixed staffing.
+    for (let i = 0; i < grid.intervals.length; i++) {
+      expect(grid.intervals[i].required).toBe(target.intervals[i].required)
+    }
+
+    // Flat 20 heads on volume intervals, none on the closed one.
+    expect(peak.scheduled).toBe(20)
+    expect(offPeak.scheduled).toBe(20)
+    expect(empty.scheduled).toBe(0)
+    expect(empty.serviceLevel).toBe(1)
+
+    // 20 heads at 30% shrinkage -> 14 bodies vs A = 48: swamped, flagged.
+    expect(peak.serviceLevel).toBe(0)
+    expect(peak.asa).toBe(Infinity)
+    expect(peak.occupancy).toBe(1)
+    expect(peak.unstable).toBe(true)
+
+    // Metrics equal a direct projection at the same bodies.
+    const p = projectAtStaffing('erlangC', 180, 240, 1800, 20, 20 * 0.7)
+    expect(offPeak.serviceLevel).toBeCloseTo(p.sl, 12)
+    expect(offPeak.asa).toBeCloseTo(p.asa, 12)
+    expect(offPeak.occupancy).toBeCloseTo(p.occupancy, 12)
+    expect(offPeak.unstable).toBe(p.unstable)
+
+    // Daily scheduled FTE-hours reflect the flat heads.
+    expect(grid.daily[0].scheduledFteHours).toBeCloseTo(20 * 0.5 * 2, 10)
+  })
+
+  it('erlangA fixed staffing reports abandonment instead of instability', () => {
+    const grid = buildStaffingGrid(forecast.slice(0, 1), undefined, {
+      ...fixedConfig,
+      mode: 'erlangA',
+    })
+    const peak = grid.intervals[0]
+    expect(peak.unstable).toBe(false)
+    expect(peak.abandonRate).toBeGreaterThan(0.5) // 14 bodies vs A = 48
+    expect(peak.serviceLevel).toBeLessThan(0.3)
+  })
+
+  it('applyScenario passes fixedScheduled through', () => {
+    const viaScenario = applyScenario(forecast, { fixedScheduled: 20 }, baseConfig)
+    const direct = buildStaffingGrid(forecast, undefined, fixedConfig)
+    expect(viaScenario).toEqual(direct)
+  })
+
+  it('rejects a negative fixed staffing', () => {
+    expect(() =>
+      buildStaffingGrid(forecast, undefined, { ...baseConfig, fixedScheduled: -1 }),
+    ).toThrow()
   })
 })
 

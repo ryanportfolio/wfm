@@ -414,6 +414,17 @@ input[type="range"] {
   margin: 0;
 }
 
+.num-input {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  width: 130px;
+  font-variant-numeric: tabular-nums;
+}
+
 .check-row {
   display: flex;
   align-items: center;

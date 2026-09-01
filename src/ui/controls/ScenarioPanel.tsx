@@ -4,9 +4,18 @@ import { Slider } from './Slider'
 import { Term } from '../Term'
 import { fmtPct, fmtSignedPct } from '../format'
 
+/** Staff-to-target solves for heads; fixed projects service at given heads. */
+export type StaffMode = 'target' | 'fixed'
+
 /** UI slider state for one scenario. Percent fields are whole percents. */
 export interface ScenarioState {
   mode: ErlangMode
+  staffMode: StaffMode
+  /**
+   * Flat scheduled heads per open interval in fixed mode. 0 means "not yet
+   * chosen"; the tab seeds it from the current peak scheduled on first switch.
+   */
+  fixedHeads: number
   slPct: number
   slSeconds: number
   patienceSec: number
@@ -21,6 +30,8 @@ export interface ScenarioState {
 
 export const DEFAULT_SCENARIO: ScenarioState = {
   mode: 'erlangA',
+  staffMode: 'target',
+  fixedHeads: 0,
   slPct: 80,
   slSeconds: 20,
   patienceSec: 120,
@@ -47,6 +58,7 @@ export function toEngineScenario(state: ScenarioState, isChatQueue: boolean): Sc
     shrinkage: state.shrinkagePct / 100,
     occupancyCap: state.occupancyCapPct / 100,
     chatConcurrency: isChatQueue ? state.chatConcurrency : 1,
+    fixedScheduled: state.staffMode === 'fixed' ? state.fixedHeads : undefined,
   }
 }
 
@@ -70,6 +82,8 @@ export function ScenarioPanel({
   isDefault,
 }: ScenarioPanelProps) {
   const erlangA = state.mode === 'erlangA'
+  const fixed = state.staffMode === 'fixed'
+  const bodiesAtHeads = Math.floor(state.fixedHeads * (1 - state.shrinkagePct / 100))
   return (
     <div className="card">
       <div className="card-title">
@@ -85,6 +99,45 @@ export function ScenarioPanel({
           Reset to defaults
         </button>
       </div>
+
+      <div className="slider-row">
+        <div className="slider-head">
+          <span>Staffing mode</span>
+        </div>
+        <div className="seg">
+          <button
+            type="button"
+            className={!fixed ? 'active' : ''}
+            onClick={() => onChange({ staffMode: 'target' })}
+          >
+            Staff to target
+          </button>
+          <button
+            type="button"
+            className={fixed ? 'active' : ''}
+            onClick={() => onChange({ staffMode: 'fixed' })}
+          >
+            What I have
+          </button>
+        </div>
+        <div className="slider-hint">
+          {fixed
+            ? 'Projects service at the heads you enter.'
+            : 'Solves for the heads that hit the target.'}
+        </div>
+      </div>
+
+      {fixed && (
+        <Slider
+          label="Scheduled heads"
+          value={state.fixedHeads}
+          min={0}
+          max={200}
+          format={(v) => `${v}`}
+          hint={`Flat heads on every interval with volume. At ${state.shrinkagePct}% shrinkage that is ${bodiesAtHeads} on the phones.`}
+          onChange={(v) => onChange({ fixedHeads: v })}
+        />
+      )}
 
       <div className="slider-row">
         <div className="slider-head">

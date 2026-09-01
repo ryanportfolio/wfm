@@ -103,6 +103,27 @@ describe('staffingDailyCsv', () => {
     expect(lines).toHaveLength(2)
     expect(lines[1]).toBe('2026-08-17,Mon,1520.5,88.25,126.071429,21,0.8412,12.75,0.0288')
   })
+
+  it('adds the cost column only when a rate is given', () => {
+    const day = {
+      date: '2026-08-17',
+      contacts: 1520.5,
+      requiredFte: 88.25,
+      scheduledFte: 126.071429,
+      peakRequired: 21,
+      sl: 0.8412,
+      asa: 12.75,
+      abandon: 0.0288,
+    }
+    const withCost = staffingDailyCsv([day], 10).trimEnd().split('\n')
+    expect(withCost[0].endsWith(',abandon_rate,cost')).toBe(true)
+    // cost = scheduled_fte_hours * rate.
+    expect(withCost[1].split(',').at(-1)).toBe('1260.71429')
+
+    const without = staffingDailyCsv([day]).trimEnd().split('\n')
+    expect(without[0].endsWith(',abandon_rate')).toBe(true)
+    expect(without[1].split(',')).toHaveLength(9)
+  })
 })
 
 describe('scorecardCsv', () => {

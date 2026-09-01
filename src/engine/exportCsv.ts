@@ -112,31 +112,44 @@ export interface StaffingDaySummary {
   abandon: number
 }
 
-/** Daily staffing summary. One row per forecast day. */
-export function staffingDailyCsv(days: readonly StaffingDaySummary[]): string {
+/**
+ * Daily staffing summary. One row per forecast day.
+ *
+ * The cost column exists only when a cost-per-scheduled-hour rate is
+ * configured (not as a permanent empty column): a file without the column
+ * says "cost was off", a file with it says what rate multiplied the hours.
+ * cost = scheduled_fte_hours * rate, nothing loaded on top.
+ */
+export function staffingDailyCsv(days: readonly StaffingDaySummary[], costPerHour?: number): string {
+  const header = [
+    'date',
+    'weekday',
+    'contacts',
+    'required_fte_hours',
+    'scheduled_fte_hours',
+    'peak_on_phones',
+    'service_level',
+    'asa_sec',
+    'abandon_rate',
+  ]
+  if (costPerHour !== undefined) header.push('cost')
   return toCsv(
-    [
-      'date',
-      'weekday',
-      'contacts',
-      'required_fte_hours',
-      'scheduled_fte_hours',
-      'peak_on_phones',
-      'service_level',
-      'asa_sec',
-      'abandon_rate',
-    ],
-    days.map((d) => [
-      d.date,
-      WEEKDAYS[weekdayOfIso(d.date)],
-      csvNum(d.contacts),
-      csvNum(d.requiredFte),
-      csvNum(d.scheduledFte),
-      csvNum(d.peakRequired),
-      csvNum(d.sl),
-      csvNum(d.asa),
-      csvNum(d.abandon),
-    ]),
+    header,
+    days.map((d) => {
+      const row = [
+        d.date,
+        WEEKDAYS[weekdayOfIso(d.date)],
+        csvNum(d.contacts),
+        csvNum(d.requiredFte),
+        csvNum(d.scheduledFte),
+        csvNum(d.peakRequired),
+        csvNum(d.sl),
+        csvNum(d.asa),
+        csvNum(d.abandon),
+      ]
+      if (costPerHour !== undefined) row.push(csvNum(d.scheduledFte * costPerHour))
+      return row
+    }),
   )
 }
 

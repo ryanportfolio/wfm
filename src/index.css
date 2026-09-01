@@ -674,11 +674,11 @@ input[type="checkbox"] {
   text-decoration-color: var(--accent-ink);
 }
 
+/* Portaled onto body and fixed, so it never grows a scroll container. Sits
+   above the sticky header (10) and the nudge (40), under the tour (200). */
 .term-pop {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 6px);
-  z-index: 30;
+  position: fixed;
+  z-index: 150;
   width: 300px;
   max-width: calc(100vw - 24px);
   background: var(--surface);
@@ -1139,6 +1139,26 @@ input[type="checkbox"] {
   max-width: var(--measure);
   font-size: var(--text-base);
   line-height: 1.6;
+}
+
+/* Wide cards: let a long explainer fill the card in two columns. */
+@media (min-width: 1000px) {
+  .prose {
+    max-width: none;
+    columns: 2;
+    column-gap: var(--space-5);
+    orphans: 3;
+    widows: 3;
+  }
+}
+
+/* Section heading outside a card; matches card titles. */
+.section-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
 }
 
 /* Staffing layout */

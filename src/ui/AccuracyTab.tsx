@@ -172,9 +172,8 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
         <div className="card-title">
           <h2>Accuracy scorecard: {queue}</h2>
           <span className="card-subtitle">
-            Each method re-forecasts 8 held-back stretches of history (a{' '}
-            <Term term="rollingOrigin">rolling-origin</Term> backtest), 28 days at a time, scored
-            against raw actuals
+            8 held-back rounds (a <Term term="rollingOrigin">rolling-origin</Term> backtest), 28
+            days each, scored against raw actuals
           </span>
           <span style={{ flex: 1 }} />
           <button
@@ -205,22 +204,21 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
 
         {runError && (
           <div className="note error-text">
-            The accuracy test failed: {runError}. Use the button above to try again.
+            Accuracy test failed: {runError}. Retry above.
           </div>
         )}
 
         {!reports && !running && !runError && (
           <div className="note">
-            Run the test to see how each method would have done. It hides the most recent history,
-            forecasts it, then compares forecast to reality; repeated 8 times at different cut-off
-            dates, 28 days each.
+            The test hides recent history, has each method forecast it, and compares to reality:
+            8 rounds at different cut-off dates, 28 days each.
           </div>
         )}
 
         {reports && folds === 0 && (
           <div className="note">
-            Not enough history for the accuracy test: this queue needs at least 168 days (140 to
-            learn from plus the 28-day test window). Load a longer history to score the methods.
+            Not enough history: needs at least 168 days (140 to learn from plus a 28-day test
+            window).
           </div>
         )}
 
@@ -287,10 +285,10 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
               </table>
             </div>
             <p className="note" style={{ marginBottom: 0 }}>
-              {folds} test rounds ran. Best value per column is highlighted. MAPE cannot score
-              moments with zero contacts, so it covered {coverage('interval') !== null ? fmtPct(coverage('interval')!) : 'n/a'} of
-              intervals, {coverage('daily') !== null ? fmtPct(coverage('daily')!) : 'n/a'} of days, and{' '}
-              {coverage('weekly') !== null ? fmtPct(coverage('weekly')!) : 'n/a'} of weeks; WAPE and bias score
+              {folds} rounds; best per column highlighted. MAPE cannot score zero-contact points:
+              covered {coverage('interval') !== null ? fmtPct(coverage('interval')!) : 'n/a'} of
+              intervals, {coverage('daily') !== null ? fmtPct(coverage('daily')!) : 'n/a'} of days,{' '}
+              {coverage('weekly') !== null ? fmtPct(coverage('weekly')!) : 'n/a'} of weeks. WAPE and bias score
               every point.
             </p>
           </>
@@ -302,7 +300,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
           <div className="card-title">
             <h2>Accuracy by lead time</h2>
             <span className="card-subtitle">
-              How accuracy fades as the forecast reaches further ahead; lower is better
+              Lower is better
             </span>
           </div>
           <div className="legend-row">
@@ -318,9 +316,8 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
           </div>
           <LeadTimeChart rows={leadRows} theme={theme} />
           <p className="note" style={{ marginBottom: 0 }}>
-            Lead day 1 is the first day after each fold&apos;s origin, day 28 the furthest out.
-            A line that climbs to the right loses accuracy as the forecast reaches further ahead;
-            a flat line holds up across the whole horizon.
+            Lead day 1: first day after each fold&apos;s origin; day 28: furthest out. A climbing
+            line loses accuracy further ahead; a flat line holds up.
           </p>
         </div>
       )}
@@ -331,7 +328,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             <div className="card-title">
               <h2>How steady are the scores?</h2>
               <span className="card-subtitle">
-                Best, median, and worst daily WAPE across the {folds} test rounds
+                Best, median, worst daily WAPE across {folds} rounds
               </span>
             </div>
             <div className="table-wrap">
@@ -357,8 +354,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             </table>
             </div>
             <p className="note" style={{ marginBottom: 0 }}>
-              Each round scores one 28-day window. A small gap between best and worst means the
-              headline score holds up across periods instead of leaning on one lucky stretch.
+              A small best-to-worst gap means the headline score holds up, not one lucky stretch.
             </p>
           </div>
           <div className="card">
@@ -377,17 +373,13 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             <h2>Reading the scorecard</h2>
           </div>
           <p className="prose" style={{ marginTop: 0, marginBottom: 0 }}>
-            WAPE asks: of everything that actually arrived, what share did the forecast miss by?
-            Big days count more, so a miss on a 3,000-contact Monday matters far more than the
-            same percentage miss on a quiet Saturday. MAPE treats every point equally instead,
-            which lets tiny numbers dominate: an interval expecting 4 contacts that gets 8 counts
-            as a 100% miss even though it is only 4 contacts off, and moments with zero contacts
-            cannot be scored at all (see the coverage note above). That is also why per-interval
-            numbers look worse than daily or weekly ones: slicing a day into 48 pieces adds random
-            arrival noise that daily totals smooth away. For staffing decisions, daily WAPE is the
-            number to plan with; interval WAPE mostly says how well the shape of the day fits.
-            Bias shows direction: positive means the method usually guesses high, negative means
-            it usually guesses low.
+            WAPE: of everything that arrived, what share did the forecast miss? Big days count
+            more: a 3,000-contact Monday outweighs a quiet Saturday at the same percentage miss.
+            MAPE weights every point equally, so tiny numbers dominate: 4 expected, 8 actual is a
+            100% miss, and zero-contact points cannot be scored. Interval scores read worse: 48
+            slices a day add arrival noise that daily totals smooth away. Plan staffing on daily
+            WAPE; interval WAPE shows how well the day&apos;s shape fits. Bias: positive means the
+            method usually runs high, negative low.
           </p>
         </div>
       )}

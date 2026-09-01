@@ -128,8 +128,8 @@ export function ScenarioPanel({
         </div>
         <div className="slider-hint">
           {fixed
-            ? 'Shows the service you would get with the people you enter.'
-            : 'Finds how many people you need to hit the target.'}
+            ? 'Service level at your headcount.'
+            : 'Headcount needed to hit the target.'}
         </div>
       </div>
 
@@ -140,7 +140,7 @@ export function ScenarioPanel({
           min={0}
           max={200}
           format={(v) => `${v}`}
-          hint={`The same headcount every half hour with volume. At ${state.shrinkagePct}% shrinkage that is ${bodiesAtHeads} actually on the phones.`}
+          hint={`Same headcount every half hour with volume; at ${state.shrinkagePct}% shrinkage, ${bodiesAtHeads} on the phones.`}
           onChange={(v) => onChange({ fixedHeads: v })}
         />
       )}
@@ -169,8 +169,8 @@ export function ScenarioPanel({
         </div>
         <div className="slider-hint">
           {erlangA
-            ? 'Real-world mode: callers can hang up when their patience runs out.'
-            : 'Textbook mode: assumes every caller waits forever.'}
+            ? 'Real world: callers may hang up when patience runs out.'
+            : 'Textbook: every caller waits forever.'}
         </div>
       </div>
 
@@ -272,7 +272,7 @@ export function ScenarioPanel({
         onChange={(v) => onChange({ ahtDeltaPct: v })}
       />
       <div className="slider-hint">
-        Target: {fmtPct(state.slPct / 100, 0)} of contacts answered within {state.slSeconds} s.
+        Target: {fmtPct(state.slPct / 100, 0)} answered within {state.slSeconds} s.
       </div>
     </div>
   )

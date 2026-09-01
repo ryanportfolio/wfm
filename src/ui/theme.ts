@@ -30,10 +30,11 @@ export const METHOD_SHORT: Record<UiMethod, string> = {
 
 export const UI_METHODS: UiMethod[] = ['sma', 'hw', 'dhr', 'ensemble']
 
-/** Non-method chart colors, also Okabe-Ito. */
+/** Non-method chart colors, also Okabe-Ito (equal is a neutral gray). */
 export const EXTRA_COLORS = {
   aht: '#CC79A7',
   staffing: '#0072B2',
+  equal: '#8C8C8C',
 }
 
 export interface ChartTheme {

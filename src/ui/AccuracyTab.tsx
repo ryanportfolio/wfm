@@ -3,9 +3,11 @@ import type { BacktestReport, BacktestScore, IntervalRecord } from '../engine/ty
 import type { BacktestScoreDetailed } from '../engine/backtest'
 import { runBacktest } from '../engine/forecastPipeline'
 import type { ChartTheme, UiMethod } from './theme'
-import { METHOD_SHORT, UI_METHODS } from './theme'
+import { EXTRA_COLORS, METHOD_COLORS, METHOD_SHORT, UI_METHODS } from './theme'
 import { WapeBarChart } from './charts/WapeBarChart'
 import type { WapeBarRow } from './charts/WapeBarChart'
+import { LeadTimeChart } from './charts/LeadTimeChart'
+import type { LeadTimeRow } from './charts/LeadTimeChart'
 import { fmtPct, fmtSignedPct } from './format'
 import { errorMessage } from './errors'
 
@@ -106,6 +108,34 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
   }
 
   const folds = reports?.[0]?.folds ?? 0
+
+  // WAPE per lead day, one line per method; NaN lead days (no pooled actual
+  // volume) are left out so the chart skips them.
+  const leadRows = useMemo<LeadTimeRow[]>(() => {
+    if (!reports || folds === 0) return []
+    const horizon = reports[0].horizonDays
+    return Array.from({ length: horizon }, (_, j) => {
+      const row: LeadTimeRow = { lead: j + 1 }
+      for (const m of SCORE_METHODS) {
+        const v = reports.find((r) => r.scores[0]?.method === m)?.leadDayWape?.[j]
+        if (v !== undefined && Number.isFinite(v)) row[m] = v
+      }
+      return row
+    })
+  }, [reports, folds])
+
+  // Best / median / worst daily WAPE across folds, per method.
+  const foldSpread = useMemo(() => {
+    if (!reports || folds === 0) return []
+    return SCORE_METHODS.map((m) => {
+      const wapes = reports.find((r) => r.scores[0]?.method === m)?.foldDailyWape ?? []
+      const sorted = wapes.filter(Number.isFinite).sort((a, b) => a - b)
+      const n = sorted.length
+      const median =
+        n === 0 ? Number.NaN : n % 2 === 1 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2
+      return { method: m, min: sorted[0] ?? Number.NaN, median, max: sorted[n - 1] ?? Number.NaN }
+    })
+  }, [reports, folds])
 
   return (
     <div className="stack">
@@ -219,7 +249,67 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
       </div>
 
       {reports && folds > 0 && (
+        <div className="card">
+          <div className="card-title">
+            <h2>Accuracy by lead time</h2>
+            <span className="card-subtitle">
+              Daily WAPE at each lead day, pooled across folds; lower is better
+            </span>
+          </div>
+          <div className="legend-row">
+            {SCORE_METHODS.map((m) => (
+              <label key={m} style={{ cursor: 'default' }}>
+                <span
+                  className="swatch"
+                  style={{ background: m === 'equal' ? EXTRA_COLORS.equal : METHOD_COLORS[m] }}
+                />
+                {SCORE_METHOD_LABELS[m]}
+              </label>
+            ))}
+          </div>
+          <LeadTimeChart rows={leadRows} theme={theme} />
+          <p className="note" style={{ marginBottom: 0 }}>
+            Lead day 1 is the first day after each fold&apos;s origin, day 28 the furthest out.
+            A line that climbs to the right loses accuracy as the forecast reaches further ahead;
+            a flat line holds up across the whole horizon.
+          </p>
+        </div>
+      )}
+
+      {reports && folds > 0 && (
         <div className="two-col">
+          <div className="card">
+            <div className="card-title">
+              <h2>Fold-to-fold spread</h2>
+              <span className="card-subtitle">
+                Each fold&apos;s daily WAPE: best, median, and worst of the {folds} folds
+              </span>
+            </div>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th className="num">Best fold</th>
+                  <th className="num">Median fold</th>
+                  <th className="num">Worst fold</th>
+                </tr>
+              </thead>
+              <tbody>
+                {foldSpread.map((s) => (
+                  <tr key={s.method}>
+                    <td>{SCORE_METHOD_LABELS[s.method]}</td>
+                    <td className="num">{fmtPct(s.min)}</td>
+                    <td className="num">{fmtPct(s.median)}</td>
+                    <td className="num">{fmtPct(s.max)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="note" style={{ marginBottom: 0 }}>
+              Each fold scores one 28-day window. A narrow spread between best and worst means the
+              pooled score is stable across windows rather than carried by one lucky stretch.
+            </p>
+          </div>
           <div className="card">
             <div className="card-title">
               <h2>Daily WAPE by method</h2>
@@ -227,25 +317,28 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             </div>
             <WapeBarChart rows={wapeRows} theme={theme} />
           </div>
-          <div className="card">
-            <div className="card-title">
-              <h2>Reading the scorecard</h2>
-            </div>
-            <p className="prose" style={{ marginTop: 0, marginBottom: 0 }}>
-              WAPE weights every error by volume: it divides the sum of absolute errors by total
-              actual contacts, so a miss on a 3,000-contact Monday counts far more than the same
-              percentage miss on a quiet Saturday. MAPE instead averages each point&apos;s
-              percentage error equally, which lets small denominators dominate: an interval
-              expecting 4 contacts that gets 8 scores as a 100% miss even though it is off by only
-              4 contacts, and zero-volume intervals cannot be scored at all (see the coverage note
-              above). That small-denominator effect is also why interval-grain numbers read worse
-              than daily or weekly ones: the same forecast sliced into 48 intervals inherits pure
-              arrival noise that daily totals average away. For staffing decisions, daily WAPE is
-              the primary planning number, and interval WAPE mostly reflects how well the intraday
-              profile fits. Bias shows direction: positive means the method over-forecasts on
-              balance, negative means it under-forecasts.
-            </p>
+        </div>
+      )}
+
+      {reports && folds > 0 && (
+        <div className="card">
+          <div className="card-title">
+            <h2>Reading the scorecard</h2>
           </div>
+          <p className="prose" style={{ marginTop: 0, marginBottom: 0 }}>
+            WAPE weights every error by volume: it divides the sum of absolute errors by total
+            actual contacts, so a miss on a 3,000-contact Monday counts far more than the same
+            percentage miss on a quiet Saturday. MAPE instead averages each point&apos;s
+            percentage error equally, which lets small denominators dominate: an interval
+            expecting 4 contacts that gets 8 scores as a 100% miss even though it is off by only
+            4 contacts, and zero-volume intervals cannot be scored at all (see the coverage note
+            above). That small-denominator effect is also why interval-grain numbers read worse
+            than daily or weekly ones: the same forecast sliced into 48 intervals inherits pure
+            arrival noise that daily totals average away. For staffing decisions, daily WAPE is
+            the primary planning number, and interval WAPE mostly reflects how well the intraday
+            profile fits. Bias shows direction: positive means the method over-forecasts on
+            balance, negative means it under-forecasts.
+          </p>
         </div>
       )}
     </div>

@@ -50,6 +50,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
         hw: forecast.components.hw[j].total,
         dhr: forecast.components.dhr[j].total,
         ensemble: p.total,
+        band: forecast.band ? [p.lo, p.hi] : undefined,
       })
     })
     return out
@@ -107,8 +108,22 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
               {METHOD_LABELS[m]}
             </label>
           ))}
+          {forecast.band && (
+            <label style={{ cursor: 'default' }}>
+              <span
+                className="swatch"
+                style={{ background: METHOD_COLORS.ensemble, opacity: 0.3 }}
+              />
+              80% range
+            </label>
+          )}
         </div>
         <ForecastChart rows={rows} lastActualDate={lastActualDate} visible={visible} theme={theme} />
+        <p className="note" style={{ marginBottom: 0 }}>
+          {forecast.band
+            ? 'Shaded range around the ensemble line: 80% of its rolling-origin evaluation errors fell inside this band, pooled per horizon bucket. It shows and hides with the Ensemble checkbox.'
+            : 'No shaded range: history is too short to run the evaluation folds that calibrate it.'}
+        </p>
       </div>
 
       <div className="two-col">

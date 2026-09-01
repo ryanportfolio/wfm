@@ -1,4 +1,6 @@
+import type { RelErrorSample } from '../types'
 import type { ForecastInput } from '../series'
+import { relError } from '../metrics'
 import { forecastSma } from './sma'
 import { forecastHoltWinters } from './holtWinters'
 import { forecastDhr } from './dhr'
@@ -69,6 +71,13 @@ export interface EnsembleWeights {
   fallbackEqual: boolean
   /** Number of internal folds actually evaluated */
   innerFolds: number
+  /**
+   * Relative errors of the fitted blend on the inner evaluation days,
+   * for prediction-interval calibration (see intervals.ts). Empty on the
+   * equal-weights fallback. Slightly optimistic versus outer backtest
+   * errors, since the blend weights were tuned on these same days.
+   */
+  innerErrors: RelErrorSample[]
 }
 
 export type WeightScheme = 'power' | 'tunedPower' | 'bestShrink'
@@ -116,6 +125,7 @@ function equalWeights(innerFolds: number): EnsembleWeights {
     })),
     fallbackEqual: true,
     innerFolds,
+    innerErrors: [],
   }
 }
 
@@ -269,6 +279,8 @@ export function fitEnsembleWeights(
   if (origins.length < 2) return equalWeights(origins.length)
 
   const innerDays: InnerEvalDay[] = []
+  /** 1-based lead day of innerDays[i] within its fold's evaluation window. */
+  const innerLeads: number[] = []
   for (const origin of origins) {
     const innerTrain = train.slice(0, origin)
     const evalPoints = train.slice(origin, origin + evalDays)
@@ -286,10 +298,24 @@ export function fitEnsembleWeights(
         actual: rawTrainTotals ? rawTrainTotals[origin + j] : evalPoints[j].total,
         forecasts: COMPONENT_NAMES.map((name) => components[name][j]),
       })
+      innerLeads.push(j + 1)
     }
   }
 
   const solved = solveWeights(innerDays, opts)
+
+  // Relative errors of the solved blend on the same evaluation days, kept for
+  // prediction-interval calibration. Zero-forecast days (closed holidays)
+  // yield no error sample.
+  const innerErrors: RelErrorSample[] = []
+  innerDays.forEach((d, i) => {
+    const w = solved[d.bucket].weights
+    let v = 0
+    for (let m = 0; m < d.forecasts.length; m++) v += w[m] * d.forecasts[m]
+    const rel = relError(d.actual, Math.max(0, v))
+    if (rel !== null) innerErrors.push({ lead: innerLeads[i], rel })
+  })
+
   const buckets: BucketWeights[] = HORIZON_BUCKETS.map((bucket, b) => {
     const weights = { sma: 0, hw: 0, dhr: 0 }
     const wapeRec = solved[b].wapes ? { sma: 0, hw: 0, dhr: 0 } : null
@@ -300,7 +326,7 @@ export function fitEnsembleWeights(
     return { label: bucket.label, fromDay: bucket.fromDay, toDay: bucket.toDay, weights, wapes: wapeRec }
   })
 
-  return { buckets, fallbackEqual: false, innerFolds: origins.length }
+  return { buckets, fallbackEqual: false, innerFolds: origins.length, innerErrors }
 }
 
 /** Blend component daily forecasts using per-horizon-bucket weights. */

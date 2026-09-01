@@ -127,10 +127,23 @@ describe('fitEnsembleWeights', () => {
     }
   })
 
+  it('records inner blend errors for interval calibration when fitted', () => {
+    const weights = fitEnsembleWeights(synthInput(300))
+    // 4 inner folds x 28 evaluation days, minus any zero-forecast days.
+    expect(weights.innerErrors.length).toBeGreaterThan(0)
+    expect(weights.innerErrors.length).toBeLessThanOrEqual(4 * 28)
+    for (const e of weights.innerErrors) {
+      expect(e.lead).toBeGreaterThanOrEqual(1)
+      expect(e.lead).toBeLessThanOrEqual(28)
+      expect(Number.isFinite(e.rel)).toBe(true)
+    }
+  })
+
   it('falls back to equal weights below the history minimum', () => {
     const weights = fitEnsembleWeights(synthInput(120))
     expect(weights.fallbackEqual).toBe(true)
     expect(weights.innerFolds).toBe(0)
+    expect(weights.innerErrors).toEqual([])
     for (const bucket of weights.buckets) {
       for (const name of COMPONENT_NAMES) expect(bucket.weights[name]).toBeCloseTo(1 / 3, 10)
       expect(bucket.wapes).toBeNull()

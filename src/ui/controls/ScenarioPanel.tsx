@@ -129,7 +129,7 @@ export function ScenarioPanel({
         <div className="slider-hint">
           {fixed
             ? 'Service level at your headcount.'
-            : 'Headcount needed to hit the target.'}
+            : 'Headcount needed for the target.'}
         </div>
       </div>
 
@@ -169,8 +169,8 @@ export function ScenarioPanel({
         </div>
         <div className="slider-hint">
           {erlangA
-            ? 'Real world: callers may hang up when patience runs out.'
-            : 'Textbook: every caller waits forever.'}
+            ? 'Callers may hang up when patience runs out.'
+            : 'Every caller waits forever.'}
         </div>
       </div>
 

@@ -139,8 +139,8 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
           {forecast.band ? (
             <>
               Shaded band: where the real number landed 8 times in 10 in{' '}
-              <Term term="rollingOrigin">rolling-origin</Term> tests on unseen days. Width is set
-              per days-ahead range. Those tests also tuned the blend, so the band can run slightly narrow.
+              <Term term="rollingOrigin">rolling-origin</Term> tests on unseen days; width varies by
+              days-ahead range. Those tests also tuned the blend, so the band can run slightly narrow.
               Untick Ensemble to hide it.
             </>
           ) : (
@@ -225,10 +225,11 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
               'Equal shares: too little history to test which method deserves more.'
             ) : (
               <>
-                Shares favor methods that missed least in {forecast.weights.innerFolds} practice
-                tests on separate hidden history slices, scored against uncleaned actuals:
-                inverse <Term term="wape">WAPE</Term> to a power; the data picks the power, so it
-                backs the front-runner hard or spreads across all three.
+                Shares go to the methods that missed least in {forecast.weights.innerFolds}{' '}
+                practice tests on hidden slices of history, scored against uncleaned actuals. Each
+                share is inverse <Term term="wape">WAPE</Term> raised to a power; the data picks
+                that power, which decides whether to back the front-runner hard or spread across
+                all three.
               </>
             )}
           </p>

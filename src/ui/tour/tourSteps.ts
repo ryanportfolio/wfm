@@ -47,7 +47,7 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="cleaning"]',
     fallbackSelector: '#panel-data',
     title: 'Odd days cleaned',
-    body: 'Before modeling, outages and one-off spikes take that weekday and half hour\'s usual value. Nothing is deleted; every change is listed here.',
+    body: 'Outages and one-off spikes take that weekday and half hour\'s usual value. Nothing is deleted; every change is listed here.',
   },
   {
     id: 'forecast-chart',
@@ -55,7 +55,7 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="forecast-chart"]',
     fallbackSelector: '#panel-forecast',
     title: 'The forecast',
-    body: 'The line predicts contacts per day; the band covers 80% of past errors. Look ahead 7, 14, or 28 days.',
+    body: 'The line predicts daily contacts; the band covers 80% of past errors. Look 7, 14, or 28 days ahead.',
   },
   {
     id: 'backtest',

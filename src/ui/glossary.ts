@@ -34,7 +34,7 @@ export const GLOSSARY = {
   asa: {
     label: 'ASA',
     definition:
-      'Average speed of answer: mean wait before pickup.',
+      'Average speed of answer: the mean wait before an agent picks up; 25 s means the typical contact waited 25 seconds.',
   },
   sl: {
     label: 'SL',
@@ -49,7 +49,7 @@ export const GLOSSARY = {
   mad: {
     label: 'MAD',
     definition:
-      'Median absolute deviation: median distance from the group median; one extreme value barely moves it, so it spots outliers reliably.',
+      'Median absolute deviation: median distance from the group median; one extreme value barely moves it, so it spots outliers.',
   },
   shrinkage: {
     label: 'Shrinkage',
@@ -59,12 +59,12 @@ export const GLOSSARY = {
   occupancy: {
     label: 'Occupancy',
     definition:
-      'Logged-in time on contacts, not waiting; 90% leaves 6 idle minutes an hour; teams rarely sustain more without burnout.',
+      'Share of logged-in time spent on contacts rather than waiting; 90% leaves 6 idle minutes an hour, and teams rarely sustain more without burnout.',
   },
   rollingOrigin: {
     label: 'Rolling-origin',
     definition:
-      'Backtest refit at several past cut-offs (origins), each scored on the days after; no score uses seen data.',
+      'A backtest refit at several past cut-off dates (origins), each scored on the days after its cut-off, so no score uses data the model had seen.',
   },
   dhr: {
     label: 'DHR',

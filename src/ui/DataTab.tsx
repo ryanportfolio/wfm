@@ -146,10 +146,10 @@ export function DataTab({
         <p className="note">
           Sample data: a generated 2-year, 3-queue public-sector contact center with Monday peaks,
           post-holiday spikes, month-start benefit bumps, twin intraday peaks, and injected outages
-          for cleaning to catch.
+          for cleaning.
         </p>
         <p className="note" style={{ marginBottom: 4 }}>
-          CSV template (copy to start):
+          CSV template:
         </p>
         <pre
           className="note"

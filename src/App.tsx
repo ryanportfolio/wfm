@@ -230,7 +230,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to forecast yet"
-              text="After loading: predicted contacts per day, a band the real number lands in 8 times in 10, half-hour volume and handle time, and the blend's three-method mix."
+              text="Predicted contacts per day, a band the real number lands in 8 times in 10, half-hour volume and handle time, and the blend's three-method mix."
               onGoData={() => setTab('data')}
             />
           )}
@@ -247,7 +247,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to backtest yet"
-              text="After loading, each method re-forecasts unseen weeks, scored (WAPE, MAPE, bias) per interval, day, and week, plus how accuracy fades further ahead."
+              text="Each method re-forecasts unseen weeks, scored (WAPE, MAPE, bias) per interval, day, and week, plus how accuracy fades further ahead."
               onGoData={() => setTab('data')}
             />
           )}
@@ -266,7 +266,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to staff against yet"
-              text="After loading: people needed per half hour, plus what-if sliders: answer-speed target, time lost to breaks and meetings, caller patience, chats per agent."
+              text="People needed per half hour, plus what-if sliders: answer-speed target, time lost to breaks and meetings, caller patience, chats per agent."
               onGoData={() => setTab('data')}
             />
           )}

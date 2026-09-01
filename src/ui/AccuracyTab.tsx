@@ -210,8 +210,8 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
 
         {!reports && !running && !runError && (
           <div className="note">
-            The test hides recent history, has each method forecast it, and compares to reality:
-            8 rounds at different cut-off dates, 28 days each.
+            The test hides recent history at each cut-off date, has each method forecast it, and
+            compares to reality.
           </div>
         )}
 
@@ -373,13 +373,12 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             <h2>Reading the scorecard</h2>
           </div>
           <p className="prose" style={{ marginTop: 0, marginBottom: 0 }}>
-            WAPE: of everything that arrived, what share did the forecast miss? Big days count
-            more: a 3,000-contact Monday outweighs a quiet Saturday at the same percentage miss.
+            WAPE: what share of all arrivals did the forecast miss? Big days count more: a
+            3,000-contact Monday outweighs a quiet Saturday at the same percentage miss.
             MAPE weights every point equally, so tiny numbers dominate: 4 expected, 8 actual is a
-            100% miss, and zero-contact points cannot be scored. Interval scores read worse: 48
-            slices a day add arrival noise that daily totals smooth away. Plan staffing on daily
-            WAPE; interval WAPE shows how well the day&apos;s shape fits. Bias: positive means the
-            method usually runs high, negative low.
+            100% miss. Interval scores read worse: 48 slices a day add arrival noise that daily
+            totals smooth away. Plan staffing on daily WAPE; interval WAPE shows how well the
+            day&apos;s shape fits. Bias: positive means the method usually runs high, negative low.
           </p>
         </div>
       )}

@@ -429,7 +429,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           disabled={!clipboardOk}
           title={
             clipboardOk
-              ? 'Link that restores these settings'
+              ? 'Link restoring these settings'
               : 'No clipboard access; copy the page address'
           }
           onClick={copyLink}
@@ -624,13 +624,13 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           {fixedA && chartRows.length > 0 && (
             <p className="note" style={{ marginBottom: 0 }}>
               {dayUnderstaffed > 0
-                ? `${dayUnderstaffed} of ${chartRows.length} intervals on this day miss the ${fmtPct(
+                ? `${dayUnderstaffed} of ${chartRows.length} intervals this day miss the ${fmtPct(
                     slTargetA,
                     0,
                   )} target at your headcount.`
-                : `All ${chartRows.length} intervals on this day meet the ${fmtPct(slTargetA, 0)} target at your headcount.`}
+                : `All ${chartRows.length} intervals this day meet the ${fmtPct(slTargetA, 0)} target at your headcount.`}
               {dayUnstable > 0 &&
-                ` In ${dayUnstable} of them, arrivals outpace people on phones and the queue grows all interval (Erlang C: unstable).`}
+                ` In ${dayUnstable} of them the queue grows all interval (Erlang C: unstable).`}
             </p>
           )}
         </div>
@@ -641,8 +641,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               <h2>Daily summary{compare ? ': scenario A' : ''}</h2>
               <span className="card-subtitle">
                 Service level, answer speed, abandonment: projected at this staffing, busy times
-                weighted most. Peak on phones: people handling contacts, before break and meeting
-                cover.
+                weighted most. Peak on phones: agents on contacts, before break and meeting cover.
               </span>
               <span style={{ flex: 1 }} />
               <button

@@ -40,6 +40,25 @@ const POP_MARGIN = 8
  * so opening it never grows a scroll container (tables, .scroll boxes) and the
  * reader never has to scroll to read it.
  */
+/**
+ * True while the term's box shows inside the viewport and inside every scroll
+ * container above it. A hidden tab panel measures 0x0 and counts as gone.
+ */
+function triggerVisible(btn: HTMLElement, rect: DOMRect): boolean {
+  const vw = document.documentElement.clientWidth
+  const vh = document.documentElement.clientHeight
+  const outside = (box: { top: number; bottom: number; left: number; right: number }) =>
+    rect.bottom <= box.top || rect.top >= box.bottom || rect.right <= box.left || rect.left >= box.right
+  if (outside({ top: 0, bottom: vh, left: 0, right: vw })) return false
+  for (let el = btn.parentElement; el; el = el.parentElement) {
+    const { overflowX, overflowY } = getComputedStyle(el)
+    if (/(auto|scroll|hidden)/.test(overflowX + overflowY) && outside(el.getBoundingClientRect())) {
+      return false
+    }
+  }
+  return true
+}
+
 export function Term({ term, children }: TermProps) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
@@ -57,6 +76,13 @@ export function Term({ term, children }: TermProps) {
       const pop = popRef.current
       if (!btn || !pop) return
       const term = btn.getBoundingClientRect()
+      // A term scrolled out of the viewport or clipped by a scroll box has
+      // nothing to point at; clamping would leave the definition floating over
+      // unrelated content, so it closes instead.
+      if (!triggerVisible(btn, term)) {
+        setOpen(false)
+        return
+      }
       const size = pop.getBoundingClientRect()
       const viewportWidth = document.documentElement.clientWidth
       const viewportHeight = document.documentElement.clientHeight

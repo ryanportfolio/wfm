@@ -29,9 +29,9 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="load-data"]',
     fallbackSelector: '#panel-data',
     title: 'Start with data',
-    body: 'The tour loaded two years of sample contact history. Any CSV works: one row per 30-minute interval.',
+    body: 'The tour loaded two years of sample contact history. A CSV in the template format works too.',
     altBody:
-      'You already have history loaded; the tour uses it. Any CSV works: one row per 30-minute interval.',
+      'You already have history loaded; the tour uses it. A CSV in the template format works too.',
   },
   {
     id: 'queue',

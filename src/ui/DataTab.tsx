@@ -249,13 +249,13 @@ export function DataTab({
                 </span>
               </div>
               <div className="row" style={{ marginBottom: 12 }}>
-                <span className="badge">
+                <span className="badge badge-ember">
                   {fmtInt(forecast.cleanReport.flaggedIntervals.length)} interval outliers
                 </span>
-                <span className="badge">
+                <span className="badge badge-blossom">
                   {fmtInt(forecast.cleanReport.flaggedDays.length)} daily outliers
                 </span>
-                <span className="badge">
+                <span className="badge badge-forest">
                   {fmtInt(forecast.cleanReport.closedHolidays.length)} closed holidays
                 </span>
                 <span className="badge">

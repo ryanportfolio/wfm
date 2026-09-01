@@ -49,23 +49,23 @@ export interface ChartTheme {
 }
 
 const LIGHT: ChartTheme = {
-  grid: '#e5e8ee',
-  axis: '#6b7280',
-  text: '#374151',
-  actual: '#4b5563',
+  grid: '#eae3d5',
+  axis: '#6d6759',
+  text: '#3f3a55',
+  actual: '#565073',
   tooltipBg: '#ffffff',
-  tooltipBorder: '#d8dce3',
+  tooltipBorder: '#e0d8c7',
   bad: '#b3261e',
 }
 
 const DARK: ChartTheme = {
-  grid: '#2c3440',
-  axis: '#8b94a3',
-  text: '#c7cdd8',
-  actual: '#a3adbd',
-  tooltipBg: '#1c2129',
-  tooltipBorder: '#333b47',
-  bad: '#ef6a5f',
+  grid: '#2a2361',
+  axis: '#a29cc2',
+  text: '#d4cfe8',
+  actual: '#aca6cc',
+  tooltipBg: '#1b1349',
+  tooltipBorder: '#352c72',
+  bad: '#ff8f76',
 }
 
 /** User theme choice. 'system' follows the OS preference. */

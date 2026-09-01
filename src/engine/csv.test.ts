@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { parseCsv, serializeCsv, CSV_HEADER } from './csv'
+import { parseCsv, serializeCsv, csvTemplate, CSV_HEADER, TEMPLATE_RECORDS } from './csv'
 import { generateSampleData } from './sampleData'
+
+const BOM = String.fromCharCode(0xfeff)
 
 describe('csv round-trip', () => {
   it('serialize then parse returns the same records', () => {
@@ -51,9 +53,37 @@ describe('parseCsv', () => {
     expect(result.errors).toEqual([])
     expect(result.records).toHaveLength(2)
   })
+
+  it('strips a leading UTF-8 BOM before the header check', () => {
+    const text = `${BOM}${CSV_HEADER}\n2026-01-02T08:00:00,q1,5,400\n`
+    const result = parseCsv(text)
+    expect(result.errors).toEqual([])
+    expect(result.records).toHaveLength(1)
+    expect(result.records[0].ts).toBe('2026-01-02T08:00:00')
+  })
+
+  it('only strips the BOM at position zero', () => {
+    // A BOM mid-header is real bad input and must still fail the header check.
+    const result = parseCsv(`time${BOM}stamp,queue,offered,aht\n`)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0].row).toBe(1)
+  })
 })
 
-describe('calendar and AHT validation (codex review fixes)', () => {
+describe('csvTemplate', () => {
+  it('parses cleanly and spans two queues', () => {
+    const text = csvTemplate()
+    expect(text.startsWith(CSV_HEADER + '\n')).toBe(true)
+    const result = parseCsv(text)
+    expect(result.errors).toEqual([])
+    expect(result.records).toEqual(TEMPLATE_RECORDS)
+    const queues = new Set(result.records.map((r) => r.queue))
+    expect(queues.size).toBe(2)
+    expect(result.records.length).toBe(6)
+  })
+})
+
+describe('calendar and AHT validation', () => {
   it('rejects impossible calendar dates', () => {
     const text = `${CSV_HEADER}\n2026-02-31T09:00,q,10,300\n2025-02-29T09:00,q,10,300\n2026-04-31T09:00,q,10,300\n`
     const result = parseCsv(text)

@@ -3,7 +3,7 @@
  * plus pure what-if scenario application for live sliders.
  */
 import type { ForecastPoint, StaffingGrid, StaffingInterval } from './types'
-import { requiredAgents } from './erlang'
+import { asa, erlangA, occupancy, requiredAgents, serviceLevel } from './erlang'
 import type { ErlangMode } from './erlang'
 
 export interface StaffingConfig {
@@ -32,6 +32,15 @@ export interface StaffingConfig {
   chatConcurrency?: number
   /** Queue name stamped on the grid; default ''. */
   queue?: string
+  /**
+   * Fixed-staff ("what I have") mode: this many scheduled heads on every
+   * interval with volume (zero-volume intervals get 0). Bodies on phones =
+   * fixedScheduled * (1 - shrinkage), floored to whole agents inside
+   * projectAtStaffing. `required` still holds the Erlang solve so the UI can
+   * draw the target-needs reference next to the fixed staffing. Future
+   * extension: accept a per-interval array here for shift-shaped staffing.
+   */
+  fixedScheduled?: number
 }
 
 export interface DailyFteTotal {
@@ -45,6 +54,81 @@ export interface DailyFteTotal {
 
 export interface StaffingGridResult extends StaffingGrid {
   daily: DailyFteTotal[]
+}
+
+export interface StaffingProjection {
+  /** Fraction answered within slSeconds. 1 with zero volume, 0 with no staff. */
+  sl: number
+  /** Seconds; Infinity when nothing is ever answered or the queue is unstable. */
+  asa: number
+  /** Clamped to [0, 1]; an overloaded queue pins at 1. */
+  occupancy: number
+  /** Abandonment fraction: 0 in erlangC mode; 1 with volume and no staff (erlangA). */
+  abandonPct: number
+  /** Erlang C with bodies <= offered load: the queue grows without bound. */
+  unstable: boolean
+}
+
+/**
+ * Project SL, ASA, abandonment, and occupancy at a GIVEN body count instead of
+ * solving for one; the metric formulas are the same ones requiredAgents
+ * evaluates during its search. Fractional agentsOnPhones is floored: Erlang
+ * math serves whole agents, and rounding down errs on the honest side.
+ *
+ * Edge cases:
+ * - Zero volume: SL 1, everything else 0 (matches requiredAgents).
+ * - Volume with no staff: SL 0, ASA Infinity, occupancy pinned at 1; with
+ *   patience (erlangA) everyone abandons, without it (erlangC) the queue is
+ *   flagged unstable.
+ * - Erlang C with N <= A: the steady-state queue has no fixed point, so SL 0,
+ *   ASA Infinity, occupancy clamped at 1, and `unstable` set so the UI can say
+ *   the queue grows without bound. Erlang A is stable at any N >= 1 because
+ *   abandonment sheds load.
+ */
+export function projectAtStaffing(
+  mode: ErlangMode,
+  volume: number,
+  ahtSec: number,
+  intervalSec: number,
+  slSeconds: number,
+  agentsOnPhones: number,
+  patienceSec?: number,
+): StaffingProjection {
+  if (volume <= 0 || ahtSec <= 0) {
+    return { sl: 1, asa: 0, occupancy: 0, abandonPct: 0, unstable: false }
+  }
+  if (!(intervalSec > 0)) throw new Error('intervalSec must be > 0')
+  if (mode === 'erlangA' && !(patienceSec !== undefined && patienceSec > 0)) {
+    throw new Error('erlangA mode requires patienceSec > 0')
+  }
+  const N = Math.floor(agentsOnPhones)
+  const A = (volume * ahtSec) / intervalSec
+  if (N <= 0) {
+    return {
+      sl: 0,
+      asa: Infinity,
+      occupancy: 1,
+      abandonPct: mode === 'erlangA' ? 1 : 0,
+      unstable: mode === 'erlangC',
+    }
+  }
+  if (mode === 'erlangA') {
+    const r = erlangA(A, N, ahtSec, patienceSec as number, slSeconds)
+    return {
+      sl: r.serviceLevel,
+      asa: r.asa,
+      occupancy: Math.min(1, r.occupancy),
+      abandonPct: r.abandonProb,
+      unstable: false,
+    }
+  }
+  return {
+    sl: serviceLevel(A, N, ahtSec, slSeconds),
+    asa: asa(A, N, ahtSec),
+    occupancy: Math.min(1, occupancy(A, N)),
+    abandonPct: 0,
+    unstable: N <= A,
+  }
 }
 
 /** Shrinkage gross-up: scheduled = bodies / (1 - shrinkage). Divide, never multiply. */
@@ -74,6 +158,8 @@ export function buildStaffingGrid(
   if (!(concurrency > 0)) throw new Error('chatConcurrency must be > 0')
   const queue = config.queue ?? ''
   const intervalHours = config.intervalSec / 3600
+  const fixed = config.fixedScheduled
+  if (fixed !== undefined && !(fixed >= 0)) throw new Error('fixedScheduled must be >= 0')
 
   const intervals: StaffingInterval[] = []
   const dailyMap = new Map<string, DailyFteTotal>()
@@ -93,18 +179,44 @@ export function buildStaffingGrid(
       config.maxAbandonPct,
       config.occupancyCap,
     )
-    const scheduled = grossUp(r.bodies, config.shrinkage)
-
-    intervals.push({
-      ts: point.ts,
-      queue,
-      required: r.bodies,
-      scheduled,
-      occupancy: r.occupancy,
-      serviceLevel: r.sl,
-      asa: r.asa,
-      abandonRate: r.abandonPct,
-    })
+    let iv: StaffingInterval
+    if (fixed !== undefined) {
+      // Fixed-staff mode: heads are given, metrics are projected at them.
+      const scheduled = point.offered > 0 ? fixed : 0
+      const p = projectAtStaffing(
+        config.mode,
+        point.offered,
+        effAht,
+        config.intervalSec,
+        config.slSeconds,
+        scheduled * (1 - config.shrinkage),
+        config.patienceSec,
+      )
+      iv = {
+        ts: point.ts,
+        queue,
+        required: r.bodies,
+        scheduled,
+        occupancy: p.occupancy,
+        serviceLevel: p.sl,
+        asa: p.asa,
+        abandonRate: p.abandonPct,
+        unstable: p.unstable,
+      }
+    } else {
+      iv = {
+        ts: point.ts,
+        queue,
+        required: r.bodies,
+        scheduled: grossUp(r.bodies, config.shrinkage),
+        occupancy: r.occupancy,
+        serviceLevel: r.sl,
+        asa: r.asa,
+        abandonRate: r.abandonPct,
+      }
+    }
+    intervals.push(iv)
+    const scheduled = iv.scheduled
 
     const date = point.ts.slice(0, 10)
     let day = dailyMap.get(date)
@@ -132,6 +244,8 @@ export interface Scenario {
   shrinkage?: number
   occupancyCap?: number
   chatConcurrency?: number
+  /** Fixed-staff mode: scheduled heads per open interval. See StaffingConfig. */
+  fixedScheduled?: number
 }
 
 /**
@@ -161,6 +275,7 @@ export function applyScenario(
     ...(scenario.shrinkage !== undefined && { shrinkage: scenario.shrinkage }),
     ...(scenario.occupancyCap !== undefined && { occupancyCap: scenario.occupancyCap }),
     ...(scenario.chatConcurrency !== undefined && { chatConcurrency: scenario.chatConcurrency }),
+    ...(scenario.fixedScheduled !== undefined && { fixedScheduled: scenario.fixedScheduled }),
   }
   return buildStaffingGrid(scaled, undefined, config)
 }

@@ -46,6 +46,8 @@ function parseNonNegativeNumber(value: string): number | null {
 export function parseCsv(text: string): CsvParseResult {
   const records: IntervalRecord[] = []
   const errors: CsvError[] = []
+  // Excel saves "CSV UTF-8" with a byte-order mark; strip it so the header check passes.
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1)
   const lines = text.split(/\r\n|\r|\n/)
 
   const headerLine = lines[0]?.trim() ?? ''
@@ -95,4 +97,19 @@ export function serializeCsv(records: IntervalRecord[]): string {
     lines.push(`${r.ts},${r.queue},${r.offered},${r.aht}`)
   }
   return lines.join('\n') + '\n'
+}
+
+/** Example rows for the downloadable CSV template: two queues, three intervals each. */
+export const TEMPLATE_RECORDS: IntervalRecord[] = [
+  { ts: '2026-01-05T08:00', queue: 'voice-support', offered: 42, aht: 415 },
+  { ts: '2026-01-05T08:30', queue: 'voice-support', offered: 51, aht: 402 },
+  { ts: '2026-01-05T09:00', queue: 'voice-support', offered: 58, aht: 398 },
+  { ts: '2026-01-05T08:00', queue: 'chat-support', offered: 12, aht: 610 },
+  { ts: '2026-01-05T08:30', queue: 'chat-support', offered: 15, aht: 595 },
+  { ts: '2026-01-05T09:00', queue: 'chat-support', offered: 18, aht: 600 },
+]
+
+/** CSV template text: header plus the example rows above. */
+export function csvTemplate(): string {
+  return serializeCsv(TEMPLATE_RECORDS)
 }

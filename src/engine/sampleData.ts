@@ -1,4 +1,6 @@
 import type { IntervalRecord } from './types'
+import { civilFromDays, dayNumFromIso, daysFromCivil, isoFromDayNum, weekdayOfDayNum } from './series'
+import { usHolidays } from './holidays'
 
 export const SAMPLE_START = '2024-08-17'
 export const SAMPLE_END = '2026-08-16'
@@ -8,108 +10,6 @@ const SEED = 0x5f3d2024
 const INTERVALS_PER_DAY = 48
 const OPEN_SLOT = 16 // 08:00
 const CLOSE_SLOT = 40 // 20:00
-
-// Calendar math on day numbers (days since 1970-01-01), no Date objects,
-// so output is identical regardless of host timezone.
-
-function daysFromCivil(y: number, m: number, d: number): number {
-  y -= m <= 2 ? 1 : 0
-  const era = Math.floor(y / 400)
-  const yoe = y - era * 400
-  const doy = Math.floor((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1
-  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy
-  return era * 146097 + doe - 719468
-}
-
-function civilFromDays(z: number): { y: number; m: number; d: number } {
-  z += 719468
-  const era = Math.floor(z / 146097)
-  const doe = z - era * 146097
-  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365)
-  const y = yoe + era * 400
-  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100))
-  const mp = Math.floor((5 * doy + 2) / 153)
-  const d = doy - Math.floor((153 * mp + 2) / 5) + 1
-  const m = mp + (mp < 10 ? 3 : -9)
-  return { y: y + (m <= 2 ? 1 : 0), m, d }
-}
-
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n)
-}
-
-function isoFromDayNum(z: number): string {
-  const { y, m, d } = civilFromDays(z)
-  return `${y}-${pad2(m)}-${pad2(d)}`
-}
-
-function dayNumFromIso(iso: string): number {
-  const y = Number(iso.slice(0, 4))
-  const m = Number(iso.slice(5, 7))
-  const d = Number(iso.slice(8, 10))
-  return daysFromCivil(y, m, d)
-}
-
-/** 0 = Sunday .. 6 = Saturday */
-function weekdayOfDayNum(z: number): number {
-  return ((z % 7) + 11) % 7
-}
-
-function nthWeekdayDayNum(y: number, m: number, weekday: number, n: number): number {
-  const first = daysFromCivil(y, m, 1)
-  const offset = (weekday - weekdayOfDayNum(first) + 7) % 7
-  return first + offset + (n - 1) * 7
-}
-
-function lastWeekdayDayNum(y: number, m: number, weekday: number): number {
-  const last = daysFromCivil(y, m + 1, 1) - 1
-  const back = (weekdayOfDayNum(last) - weekday + 7) % 7
-  return last - back
-}
-
-function observedDayNum(z: number): number {
-  const w = weekdayOfDayNum(z)
-  if (w === 6) return z - 1
-  if (w === 0) return z + 1
-  return z
-}
-
-/**
- * US federal holidays (actual and observed dates) within [startDate, endDate],
- * as sorted ISO dates.
- */
-export function usHolidays(startDate: string, endDate: string): string[] {
-  const startNum = dayNumFromIso(startDate)
-  const endNum = dayNumFromIso(endDate)
-  const startYear = civilFromDays(startNum).y
-  const endYear = civilFromDays(endNum).y
-  const out = new Set<number>()
-
-  for (let y = startYear - 1; y <= endYear + 1; y++) {
-    const fixed = [
-      daysFromCivil(y, 1, 1), // New Year's Day
-      daysFromCivil(y, 6, 19), // Juneteenth
-      daysFromCivil(y, 7, 4), // Independence Day
-      daysFromCivil(y, 11, 11), // Veterans Day
-      daysFromCivil(y, 12, 25), // Christmas Day
-    ]
-    for (const z of fixed) {
-      out.add(z)
-      out.add(observedDayNum(z))
-    }
-    out.add(nthWeekdayDayNum(y, 1, 1, 3)) // MLK Day
-    out.add(nthWeekdayDayNum(y, 2, 1, 3)) // Washington's Birthday
-    out.add(lastWeekdayDayNum(y, 5, 1)) // Memorial Day
-    out.add(nthWeekdayDayNum(y, 9, 1, 1)) // Labor Day
-    out.add(nthWeekdayDayNum(y, 10, 1, 2)) // Columbus Day
-    out.add(nthWeekdayDayNum(y, 11, 4, 4)) // Thanksgiving
-  }
-
-  return [...out]
-    .filter((z) => z >= startNum && z <= endNum)
-    .sort((a, b) => a - b)
-    .map(isoFromDayNum)
-}
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0
@@ -222,9 +122,9 @@ function normalizedShares(shape: (t: number) => number): number[] {
 }
 
 const SLOT_TIMES = Array.from({ length: INTERVALS_PER_DAY }, (_, slot) => {
-  const h = Math.floor(slot / 2)
+  const h = String(Math.floor(slot / 2)).padStart(2, '0')
   const m = slot % 2 === 0 ? '00' : '30'
-  return `T${pad2(h)}:${m}:00`
+  return `T${h}:${m}:00`
 })
 
 interface DayContext {

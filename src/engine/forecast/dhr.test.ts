@@ -80,7 +80,7 @@ describe('forecastDhr', () => {
   })
 })
 
-describe('calendar holidays on open queues (codex review fix)', () => {
+describe('calendar holidays on open queues', () => {
   it('learns a holiday lift when calendarHolidays marks open holidays', () => {
     // 280 days, base 1000, every 28th day is a "holiday" with +50% volume.
     const start = '2024-01-01'

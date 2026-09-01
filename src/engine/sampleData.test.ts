@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { generateSampleData, usHolidays, SAMPLE_START, SAMPLE_END, SAMPLE_QUEUES } from './sampleData'
+import { generateSampleData, SAMPLE_START, SAMPLE_END, SAMPLE_QUEUES } from './sampleData'
+import { usHolidays } from './holidays'
 
 const data = generateSampleData()
 

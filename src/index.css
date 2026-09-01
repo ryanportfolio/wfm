@@ -1,5 +1,29 @@
+/* Inter variable font, self-hosted (public/fonts/, from rsms/inter v4.1). */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/InterVariable.woff2') format('woff2');
+}
+
 :root {
   color-scheme: light dark;
+
+  /* Spacing scale, 4px base. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Type scale: tile value > card title > body > caption. */
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 22px;
+
   --bg: #f5f6f8;
   --surface: #ffffff;
   --surface-2: #eef0f4;
@@ -14,8 +38,15 @@
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
 
+/*
+ * Dark palette. Applied two ways with identical values:
+ * 1. OS preference is dark and no explicit choice overrides it
+ *    (:root:not([data-theme="light"]) inside the media query).
+ * 2. The in-app toggle explicitly picked dark ([data-theme="dark"]).
+ * Keep both blocks in sync when editing token values.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #12151a;
     --surface: #1a1f27;
     --surface-2: #232a34;
@@ -29,6 +60,29 @@
     --highlight: rgba(230, 159, 0, 0.24);
     --shadow: none;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #12151a;
+  --surface: #1a1f27;
+  --surface-2: #232a34;
+  --border: #2c3440;
+  --text: #e7ebf2;
+  --text-muted: #9aa4b2;
+  --accent: #6ea0ff;
+  --accent-soft: rgba(110, 160, 255, 0.16);
+  --good: #4cc38a;
+  --bad: #ef6a5f;
+  --highlight: rgba(230, 159, 0, 0.24);
+  --shadow: none;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 * {
@@ -50,11 +104,11 @@ h1, h2, h3 {
 }
 
 h2 {
-  font-size: 16px;
+  font-size: var(--text-lg);
 }
 
 h3 {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 
 a {
@@ -80,6 +134,21 @@ a {
   font-size: 15px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* Narrow screens: let the header controls wrap instead of overflowing. */
+@media (max-width: 940px) {
+  .app-header {
+    flex-wrap: wrap;
+    height: auto;
+    padding: var(--space-2) var(--space-4);
+    row-gap: 0;
+    column-gap: var(--space-4);
+  }
+
+  .app-header .tabs {
+    height: 40px;
+  }
 }
 
 .header-spacer {
@@ -135,6 +204,13 @@ a {
 
 .stack {
   display: grid;
+  /*
+   * minmax(0, 1fr), not the implicit auto track: an auto track's min sizing
+   * function lets any child with a wide min-content (a nowrap table, a chart
+   * holding a fixed pixel width) blow the column past its container, which
+   * then locks Recharts ResponsiveContainer at the stale width.
+   */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -149,12 +225,12 @@ a {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 16px 18px;
+  padding: var(--space-4) 18px;
   box-shadow: var(--shadow);
 }
 
 .card-title {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -162,7 +238,7 @@ a {
 }
 
 .card-subtitle {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-weight: 400;
 }
@@ -170,30 +246,59 @@ a {
 .cards-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
+}
+
+/* At mid widths a fixed column count keeps 5 tiles flowing 3+2 instead of 4+1. */
+@media (max-width: 950px) {
+  .cards-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .cards-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .metric-label {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
 .metric-value {
-  font-size: 20px;
+  margin-top: var(--space-1);
+  font-size: var(--text-xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .metric-sub {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .metric-delta {
-  font-size: 12px;
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+/* Semantic delta and bias colors; tokens hold 4.5:1 on surface in both themes. */
+.delta-good {
+  color: var(--good);
+}
+
+.delta-bad {
+  color: var(--bad);
+}
+
+.delta-neutral {
+  color: var(--text-muted);
 }
 
 /* Buttons and inputs */
@@ -268,6 +373,12 @@ select {
   font-weight: 600;
 }
 
+/* Compact segmented control for the header theme toggle. */
+.seg-sm button {
+  padding: 4px 10px;
+  font-size: var(--text-sm);
+}
+
 /* Sliders */
 
 .slider-row {
@@ -281,6 +392,8 @@ select {
 .slider-head {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
+  column-gap: 8px;
   font-size: 13px;
   margin-bottom: 2px;
 }
@@ -299,6 +412,17 @@ input[type="range"] {
   width: 100%;
   accent-color: var(--accent);
   margin: 0;
+}
+
+.num-input {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  width: 130px;
+  font-variant-numeric: tabular-nums;
 }
 
 .check-row {
@@ -359,6 +483,11 @@ input[type="checkbox"] {
   border-radius: 8px;
 }
 
+/* Horizontal-only scroll wrapper for tables outside a .scroll box. */
+.table-wrap {
+  overflow-x: auto;
+}
+
 .scroll .table th {
   position: sticky;
   top: 0;
@@ -376,10 +505,14 @@ input[type="checkbox"] {
   margin-bottom: 8px;
 }
 
-.legend-row label {
+.legend-row label,
+.legend-row .legend-item {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.legend-row label {
   cursor: pointer;
 }
 
@@ -405,6 +538,70 @@ input[type="checkbox"] {
   to {
     transform: rotate(360deg);
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-top-color: var(--border);
+    border-left-color: var(--accent);
+  }
+}
+
+/* Keyboard focus ring, both themes */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tab-btn:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Term definitions */
+
+.term-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.term-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: help;
+  text-align: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--text-muted);
+  text-underline-offset: 3px;
+}
+
+.term-btn:hover {
+  text-decoration-color: var(--accent);
+}
+
+.term-pop {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  width: 260px;
+  max-width: calc(100vw - 24px);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 4px 16px rgba(16, 24, 40, 0.18);
 }
 
 .empty {
@@ -457,7 +654,7 @@ input[type="checkbox"] {
 
 @media (max-width: 1000px) {
   .staffing-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -469,7 +666,7 @@ input[type="checkbox"] {
 
 @media (max-width: 950px) {
   .two-col {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -478,4 +675,38 @@ input[type="checkbox"] {
   text-align: center;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+/* Phone widths */
+
+@media (max-width: 620px) {
+  .container {
+    padding: 16px 12px 8px;
+  }
+
+  .card {
+    padding: var(--space-3) var(--space-3);
+  }
+
+  /* The tab strip scrolls sideways inside the header instead of widening it. */
+  .app-header .tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-btn {
+    white-space: nowrap;
+    flex: none;
+    min-height: 40px;
+  }
+
+  /* Finger-sized segmented controls. */
+  .seg button {
+    min-height: 40px;
+  }
+
+  .app-title {
+    white-space: normal;
+  }
 }

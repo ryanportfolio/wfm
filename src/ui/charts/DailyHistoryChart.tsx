@@ -25,13 +25,13 @@ export function DailyHistoryChart({ points, theme }: DailyHistoryChartProps) {
         <XAxis
           dataKey="date"
           tickFormatter={fmtDateShort}
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           minTickGap={60}
         />
         <YAxis
           tickFormatter={fmtCompact}
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           width={48}
         />

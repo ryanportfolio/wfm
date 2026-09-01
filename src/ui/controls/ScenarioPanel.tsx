@@ -1,11 +1,21 @@
 import type { ErlangMode } from '../../engine/erlang'
 import type { Scenario } from '../../engine/staffing'
 import { Slider } from './Slider'
+import { Term } from '../Term'
 import { fmtPct, fmtSignedPct } from '../format'
+
+/** Staff-to-target solves for heads; fixed projects service at given heads. */
+export type StaffMode = 'target' | 'fixed'
 
 /** UI slider state for one scenario. Percent fields are whole percents. */
 export interface ScenarioState {
   mode: ErlangMode
+  staffMode: StaffMode
+  /**
+   * Flat scheduled heads per open interval in fixed mode. 0 means "not yet
+   * chosen"; the tab seeds it from the current peak scheduled on first switch.
+   */
+  fixedHeads: number
   slPct: number
   slSeconds: number
   patienceSec: number
@@ -20,6 +30,8 @@ export interface ScenarioState {
 
 export const DEFAULT_SCENARIO: ScenarioState = {
   mode: 'erlangA',
+  staffMode: 'target',
+  fixedHeads: 0,
   slPct: 80,
   slSeconds: 20,
   patienceSec: 120,
@@ -46,6 +58,7 @@ export function toEngineScenario(state: ScenarioState, isChatQueue: boolean): Sc
     shrinkage: state.shrinkagePct / 100,
     occupancyCap: state.occupancyCapPct / 100,
     chatConcurrency: isChatQueue ? state.chatConcurrency : 1,
+    fixedScheduled: state.staffMode === 'fixed' ? state.fixedHeads : undefined,
   }
 }
 
@@ -54,19 +67,83 @@ interface ScenarioPanelProps {
   state: ScenarioState
   isChatQueue: boolean
   onChange: (patch: Partial<ScenarioState>) => void
+  /** Restore every control to DEFAULT_SCENARIO. */
+  onReset: () => void
+  /** True when the state already equals DEFAULT_SCENARIO. */
+  isDefault: boolean
 }
 
-export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioPanelProps) {
+export function ScenarioPanel({
+  title,
+  state,
+  isChatQueue,
+  onChange,
+  onReset,
+  isDefault,
+}: ScenarioPanelProps) {
   const erlangA = state.mode === 'erlangA'
+  const fixed = state.staffMode === 'fixed'
+  const bodiesAtHeads = Math.floor(state.fixedHeads * (1 - state.shrinkagePct / 100))
   return (
     <div className="card">
       <div className="card-title">
         <h2>{title}</h2>
+        <span style={{ flex: 1 }} />
+        <button
+          type="button"
+          className="btn"
+          disabled={isDefault}
+          aria-label={`Reset ${title} to defaults`}
+          onClick={onReset}
+        >
+          Reset to defaults
+        </button>
       </div>
 
       <div className="slider-row">
         <div className="slider-head">
-          <span>Erlang mode</span>
+          <span>Staffing mode</span>
+        </div>
+        <div className="seg">
+          <button
+            type="button"
+            className={!fixed ? 'active' : ''}
+            onClick={() => onChange({ staffMode: 'target' })}
+          >
+            Staff to target
+          </button>
+          <button
+            type="button"
+            className={fixed ? 'active' : ''}
+            onClick={() => onChange({ staffMode: 'fixed' })}
+          >
+            What I have
+          </button>
+        </div>
+        <div className="slider-hint">
+          {fixed
+            ? 'Projects service at the heads you enter.'
+            : 'Solves for the heads that hit the target.'}
+        </div>
+      </div>
+
+      {fixed && (
+        <Slider
+          label="Scheduled heads"
+          value={state.fixedHeads}
+          min={0}
+          max={200}
+          format={(v) => `${v}`}
+          hint={`Flat heads on every interval with volume. At ${state.shrinkagePct}% shrinkage that is ${bodiesAtHeads} on the phones.`}
+          onChange={(v) => onChange({ fixedHeads: v })}
+        />
+      )}
+
+      <div className="slider-row">
+        <div className="slider-head">
+          <span>
+            <Term term="erlang">Erlang mode</Term>
+          </span>
         </div>
         <div className="seg">
           <button
@@ -91,6 +168,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
 
       <Slider
         label="Service level target"
+        term="sl"
         value={state.slPct}
         min={50}
         max={95}
@@ -108,6 +186,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
       />
       <Slider
         label="Mean patience"
+        term="meanPatience"
         value={state.patienceSec}
         min={30}
         max={300}
@@ -130,6 +209,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
       </div>
       <Slider
         label="Max abandonment"
+        term="abandonment"
         value={state.maxAbandonPct}
         min={1}
         max={15}
@@ -140,6 +220,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
 
       <Slider
         label="Shrinkage"
+        term="shrinkage"
         value={state.shrinkagePct}
         min={0}
         max={50}
@@ -148,6 +229,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
       />
       <Slider
         label="Occupancy cap"
+        term="occupancy"
         value={state.occupancyCapPct}
         min={75}
         max={95}
@@ -174,6 +256,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
       />
       <Slider
         label="AHT delta"
+        term="aht"
         value={state.ahtDeltaPct}
         min={-20}
         max={20}

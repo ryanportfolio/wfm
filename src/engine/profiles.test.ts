@@ -74,7 +74,7 @@ describe('intervalize', () => {
   })
 })
 
-describe('weekday fallback (codex review fix)', () => {
+describe('weekday fallback', () => {
   it('a weekday with no history gets the overall profile and conserves totals', () => {
     // Drop every Tuesday from the history.
     const noTuesdays = buildRecords().filter((r) => {

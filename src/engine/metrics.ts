@@ -47,6 +47,17 @@ export function mape(actual: number[], forecast: number[]): MapeResult {
   }
 }
 
+/**
+ * Relative error of one scored day against its forecast:
+ * (actual - forecast) / forecast. Null when the forecast is ~zero (closed
+ * holidays), where the ratio is meaningless. The error is relative to the
+ * forecast rather than the actual so it works as a direct multiplier on a
+ * published forecast: actual = forecast * (1 + rel).
+ */
+export function relError(actual: number, forecast: number): number | null {
+  return forecast > 1e-9 ? (actual - forecast) / forecast : null
+}
+
 /** Signed bias: mean error / mean actual = (sumF - sumA) / sumA. NaN when sumA = 0. */
 export function bias(actual: number[], forecast: number[]): number {
   checkLengths(actual, forecast)

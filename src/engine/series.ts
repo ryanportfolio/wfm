@@ -1,8 +1,9 @@
 import type { DailyPoint, DailySeries, IntervalRecord } from './types'
 
 // Calendar math on day numbers (days since 1970-01-01), no Date objects,
-// so results are identical regardless of host timezone. Same algorithm as
-// sampleData.ts (Howard Hinnant's civil-days conversion).
+// so results are identical regardless of host timezone (Howard Hinnant's
+// civil-days conversion). Single source: holidays.ts and sampleData.ts
+// import these helpers instead of carrying their own copies.
 
 export function daysFromCivil(y: number, m: number, d: number): number {
   y -= m <= 2 ? 1 : 0

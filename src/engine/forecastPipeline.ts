@@ -1,8 +1,17 @@
-import type { BacktestReport, DailyPoint, ForecastPoint, IntervalRecord } from './types'
+import type {
+  BacktestReport,
+  BandQuantiles,
+  BandedDailyPoint,
+  DailyPoint,
+  ForecastPoint,
+  IntervalRecord,
+} from './types'
 import type { CleanReport } from './clean'
-import { cleanQueue } from './clean'
+import { cleanDays } from './clean'
+import { groupQueueDays } from './series'
 import type { EnsembleOpts, EnsembleWeights, ComponentName } from './forecast/ensemble'
 import { forecastEnsemble } from './forecast/ensemble'
+import { bandForDay, bandQuantiles } from './intervals'
 import { buildProfiles, intervalize } from './profiles'
 import type { BacktestOpts } from './backtest'
 import { buildFoldInput, futureDatesAfter, runBacktest as runBacktestImpl } from './backtest'
@@ -11,6 +20,15 @@ import { buildFoldInput, futureDatesAfter, runBacktest as runBacktestImpl } from
  * Top-level forecast pipeline for one queue: clean, fit the three daily
  * components, blend them with per-horizon-bucket inverse-WAPE weights, and
  * intervalize via recency-weighted intraday profiles.
+ *
+ * The ensemble daily forecast carries an ~80% prediction band (lo/hi per
+ * day). It is calibrated from the ensemble's own inner rolling-origin fold
+ * errors (see intervals.ts), which the weight fit already computes, so the
+ * band shows by default at zero extra model runs; no manual backtest step is
+ * needed. Tradeoff, documented in ensemble.ts: those errors are slightly
+ * in-sample for the blend (the weights were tuned on them), so the band can
+ * read a little narrower than outer backtest errors would make it. The outer
+ * backtest records its own error pool on the ensemble report for comparison.
  */
 
 export interface ForecastOpts {
@@ -28,12 +46,18 @@ export interface ForecastResult {
   cleanReport: CleanReport
   /** Daily totals per component over the horizon */
   components: Record<ComponentName, DailyPoint[]>
-  /** Blended daily totals */
-  ensemble: DailyPoint[]
+  /** Blended daily totals with 80% band edges */
+  ensemble: BandedDailyPoint[]
   /** Fitted blend weights per horizon bucket, for UI display */
   weights: EnsembleWeights
+  /**
+   * 80% band quantiles per horizon bucket from the ensemble's inner fold
+   * errors; null when history is too short to calibrate (band hidden, points
+   * carry lo = hi = total).
+   */
+  band: BandQuantiles[] | null
   /** Alias for the ensemble daily forecast */
-  dailyForecast: DailyPoint[]
+  dailyForecast: BandedDailyPoint[]
   /** Ensemble intervalized: offered and AHT per interval */
   intervalForecast: ForecastPoint[]
   /** AHT forecast per interval */
@@ -46,7 +70,8 @@ export function runForecast(
   opts: ForecastOpts = {},
 ): ForecastResult {
   const horizonDays = opts.horizonDays ?? 28
-  const cleaned = cleanQueue(records, queue)
+  const rawDays = groupQueueDays(records, queue)
+  const cleaned = cleanDays(rawDays, queue)
   if (cleaned.daily.length === 0) {
     throw new Error(`runForecast: no records for queue "${queue}"`)
   }
@@ -57,7 +82,10 @@ export function runForecast(
     cleaned.report.holidayClosed,
     futureDates,
   )
-  const { components, blend, weights } = forecastEnsemble(input, opts.ensemble)
+  // Raw daily totals (same dates as cleaned.daily) so the ensemble's inner
+  // evaluation scores against uncleaned actuals like the backtest does.
+  const rawTrainTotals = rawDays.map((d) => d.total)
+  const { components, blend, weights } = forecastEnsemble(input, opts.ensemble, rawTrainTotals)
   const profiles = buildProfiles(cleaned.days, new Set(cleaned.report.closedHolidays))
 
   const intervalForecast = intervalize(
@@ -88,7 +116,12 @@ export function runForecast(
   const toDaily = (values: number[]): DailyPoint[] =>
     futureDates.map((date, j) => ({ date, total: values[j], aht: dailyAht.get(date) ?? 0 }))
 
-  const ensembleDaily = toDaily(blend)
+  const band = bandQuantiles(weights.innerErrors)
+  const ensembleDaily: BandedDailyPoint[] = futureDates.map((date, j) => {
+    const total = blend[j]
+    const { lo, hi } = band ? bandForDay(total, j + 1, band) : { lo: total, hi: total }
+    return { date, total, aht: dailyAht.get(date) ?? 0, lo, hi }
+  })
   return {
     queue,
     cleanReport: cleaned.report,
@@ -99,6 +132,7 @@ export function runForecast(
     },
     ensemble: ensembleDaily,
     weights,
+    band,
     dailyForecast: ensembleDaily,
     intervalForecast,
     ahtForecast,
@@ -109,6 +143,7 @@ export function runBacktest(
   records: IntervalRecord[],
   queue: string,
   opts: BacktestOpts = {},
+  onProgress?: (fold: number, totalFolds: number) => void,
 ): BacktestReport[] {
-  return runBacktestImpl(records, queue, opts)
+  return runBacktestImpl(records, queue, opts, onProgress)
 }

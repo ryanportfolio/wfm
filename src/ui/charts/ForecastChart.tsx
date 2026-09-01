@@ -1,7 +1,8 @@
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -19,6 +20,8 @@ export interface ForecastChartRow {
   hw?: number
   dhr?: number
   ensemble?: number
+  /** [lo, hi] edges of the ensemble 80% band; only on forecast rows */
+  band?: [number, number]
 }
 
 interface ForecastChartProps {
@@ -31,18 +34,18 @@ interface ForecastChartProps {
 export function ForecastChart({ rows, lastActualDate, visible, theme }: ForecastChartProps) {
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+      <ComposedChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
         <CartesianGrid stroke={theme.grid} vertical={false} />
         <XAxis
           dataKey="date"
           tickFormatter={fmtDateShort}
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           minTickGap={40}
         />
         <YAxis
           tickFormatter={fmtCompact}
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           width={48}
         />
@@ -50,14 +53,29 @@ export function ForecastChart({ rows, lastActualDate, visible, theme }: Forecast
           contentStyle={tooltipStyle(theme)}
           labelStyle={{ color: theme.text }}
           labelFormatter={(v) => fmtDateLong(String(v))}
-          formatter={(value, name) => [fmtInt(Number(value)), String(name)]}
+          formatter={(value, name) =>
+            Array.isArray(value)
+              ? [`${fmtInt(Number(value[0]))} to ${fmtInt(Number(value[1]))}`, String(name)]
+              : [fmtInt(Number(value)), String(name)]
+          }
         />
         <ReferenceLine
           x={lastActualDate}
           stroke={theme.axis}
           strokeDasharray="4 4"
-          label={{ value: 'Forecast start', fill: theme.axis, fontSize: 11, position: 'insideTopRight' }}
+          label={{ value: 'Forecast start', fill: theme.axis, fontSize: 12, position: 'insideTopRight' }}
         />
+        {visible.ensemble && (
+          <Area
+            dataKey="band"
+            name="80% range"
+            stroke="none"
+            fill={METHOD_COLORS.ensemble}
+            fillOpacity={0.16}
+            activeDot={false}
+            isAnimationActive={false}
+          />
+        )}
         <Line
           type="monotone"
           dataKey="actual"
@@ -114,7 +132,7 @@ export function ForecastChart({ rows, lastActualDate, visible, theme }: Forecast
             isAnimationActive={false}
           />
         )}
-      </LineChart>
+      </ComposedChart>
     </ResponsiveContainer>
   )
 }

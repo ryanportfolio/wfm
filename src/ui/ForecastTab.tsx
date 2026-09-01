@@ -9,6 +9,9 @@ import type { ForecastChartRow } from './charts/ForecastChart'
 import { IntradayForecastChart } from './charts/IntradayForecastChart'
 import type { IntradayRow } from './charts/IntradayForecastChart'
 import { fmtDateWeekday, fmtPct } from './format'
+import { forecastDailyCsv, forecastIntervalCsv } from '../engine/exportCsv'
+import { downloadTextFile, fileSlug } from './download'
+import { Term } from './Term'
 
 export type Horizon = 7 | 14 | 28
 
@@ -50,6 +53,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
         hw: forecast.components.hw[j].total,
         dhr: forecast.components.dhr[j].total,
         ensemble: p.total,
+        band: forecast.band ? [p.lo, p.hi] : undefined,
       })
     })
     return out
@@ -89,13 +93,26 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              className="btn"
+              aria-label="Download daily forecast CSV"
+              onClick={() =>
+                downloadTextFile(
+                  `forecast-daily-${fileSlug(queue)}-${horizon}d.csv`,
+                  forecastDailyCsv(forecast.dailyForecast),
+                )
+              }
+            >
+              Download CSV
+            </button>
           </div>
         </div>
         <div className="legend-row">
-          <label style={{ cursor: 'default' }}>
+          <span className="legend-item">
             <span className="swatch" style={{ background: theme.actual }} />
             Actual
-          </label>
+          </span>
           {(['sma', 'hw', 'dhr', 'ensemble'] as UiMethod[]).map((m) => (
             <label key={m}>
               <input
@@ -107,8 +124,30 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
               {METHOD_LABELS[m]}
             </label>
           ))}
+          {forecast.band && (
+            <span className="legend-item">
+              <span
+                className="swatch"
+                style={{ background: METHOD_COLORS.ensemble, opacity: 0.3 }}
+              />
+              80% range
+            </span>
+          )}
         </div>
         <ForecastChart rows={rows} lastActualDate={lastActualDate} visible={visible} theme={theme} />
+        <p className="note" style={{ marginBottom: 0 }}>
+          {forecast.band ? (
+            <>
+              Shaded range around the ensemble line: 80% of its{' '}
+              <Term term="rollingOrigin">rolling-origin</Term> evaluation errors fell inside this
+              band, pooled per horizon bucket. The range is calibrated on the same evaluation
+              windows used to fit the blend weights, so it can read slightly narrow. It shows and
+              hides with the Ensemble checkbox.
+            </>
+          ) : (
+            'No shaded range: history is too short to run the evaluation folds that calibrate it.'
+          )}
+        </p>
       </div>
 
       <div className="two-col">
@@ -117,13 +156,30 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
             <h2>Intraday forecast</h2>
             <span className="card-subtitle">Ensemble offered per interval, AHT on the right axis</span>
             <span style={{ flex: 1 }} />
-            <select value={selectedDate} onChange={(e) => setIntradayDate(e.target.value)}>
+            <select
+              aria-label="Day shown in the intraday forecast chart"
+              value={selectedDate}
+              onChange={(e) => setIntradayDate(e.target.value)}
+            >
               {forecastDates.map((d) => (
                 <option key={d} value={d}>
                   {fmtDateWeekday(d)}
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="btn"
+              aria-label="Download intraday forecast CSV"
+              onClick={() =>
+                downloadTextFile(
+                  `forecast-intraday-${fileSlug(queue)}-${horizon}d.csv`,
+                  forecastIntervalCsv(forecast.intervalForecast),
+                )
+              }
+            >
+              Download CSV
+            </button>
           </div>
           <IntradayForecastChart rows={intradayRows} theme={theme} />
         </div>
@@ -133,13 +189,16 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
             <h2>What the ensemble learned</h2>
             <span className="card-subtitle">Blend weight per component, fitted per horizon bucket</span>
           </div>
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Horizon bucket</th>
+                <th>
+                  <Term term="horizonBucket">Horizon bucket</Term>
+                </th>
                 {COMPONENT_METHODS.map((m) => (
                   <th key={m} className="num">
-                    {METHOD_SHORT[m]}
+                    {m === 'dhr' ? <Term term="dhr">DHR</Term> : METHOD_SHORT[m]}
                   </th>
                 ))}
               </tr>
@@ -157,10 +216,19 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
               ))}
             </tbody>
           </table>
+          </div>
           <p className="note" style={{ marginBottom: 0 }}>
-            {forecast.weights.fallbackEqual
-              ? 'Equal weights: history is below the minimum needed to fit weights.'
-              : `Weights are proportional to inverse squared WAPE from ${forecast.weights.innerFolds} rolling-origin evaluation folds inside the training window. Short horizons lean on the components that nail next week; longer buckets shift toward the ones that hold trend and yearly shape.`}
+            {forecast.weights.fallbackEqual ? (
+              'Equal weights: history is below the minimum needed to fit weights.'
+            ) : (
+              <>
+                Weights are proportional to inverse <Term term="wape">WAPE</Term> raised to a tuned
+                power, from {forecast.weights.innerFolds} non-overlapping rolling-origin evaluation
+                folds inside the training window, scored against raw actuals. The power comes from
+                a small grid, so the data decides how much to concentrate on the strongest
+                component versus hedging across all three.
+              </>
+            )}
           </p>
         </div>
       </div>

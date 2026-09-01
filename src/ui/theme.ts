@@ -30,10 +30,11 @@ export const METHOD_SHORT: Record<UiMethod, string> = {
 
 export const UI_METHODS: UiMethod[] = ['sma', 'hw', 'dhr', 'ensemble']
 
-/** Non-method chart colors, also Okabe-Ito. */
+/** Non-method chart colors, also Okabe-Ito (equal is a neutral gray). */
 export const EXTRA_COLORS = {
   aht: '#CC79A7',
   staffing: '#0072B2',
+  equal: '#8C8C8C',
 }
 
 export interface ChartTheme {
@@ -43,6 +44,8 @@ export interface ChartTheme {
   actual: string
   tooltipBg: string
   tooltipBorder: string
+  /** Matches the CSS --bad token, for marks that flag a miss. */
+  bad: string
 }
 
 const LIGHT: ChartTheme = {
@@ -52,6 +55,7 @@ const LIGHT: ChartTheme = {
   actual: '#4b5563',
   tooltipBg: '#ffffff',
   tooltipBorder: '#d8dce3',
+  bad: '#b3261e',
 }
 
 const DARK: ChartTheme = {
@@ -61,17 +65,61 @@ const DARK: ChartTheme = {
   actual: '#a3adbd',
   tooltipBg: '#1c2129',
   tooltipBorder: '#333b47',
+  bad: '#ef6a5f',
+}
+
+/** User theme choice. 'system' follows the OS preference. */
+export type ThemePreference = 'light' | 'dark' | 'system'
+
+const THEME_KEY = 'wfm-theme'
+
+export function readThemePreference(): ThemePreference {
+  try {
+    const v = localStorage.getItem(THEME_KEY)
+    if (v === 'light' || v === 'dark') return v
+  } catch {
+    // Storage unavailable (private mode, blocked): fall back to system.
+  }
+  return 'system'
+}
+
+/**
+ * Set the data-theme attribute the CSS keys on and persist the choice.
+ * 'system' clears both so the prefers-color-scheme media query decides.
+ * index.html runs the same attribute logic inline before first paint.
+ */
+export function applyThemePreference(pref: ThemePreference): void {
+  const root = document.documentElement
+  if (pref === 'system') root.removeAttribute('data-theme')
+  else root.setAttribute('data-theme', pref)
+  try {
+    if (pref === 'system') localStorage.removeItem(THEME_KEY)
+    else localStorage.setItem(THEME_KEY, pref)
+  } catch {
+    // Persistence is best-effort; the attribute still applies this session.
+  }
+}
+
+function isDarkNow(): boolean {
+  const attr = document.documentElement.getAttribute('data-theme')
+  if (attr === 'dark') return true
+  if (attr === 'light') return false
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
 export function useDarkMode(): boolean {
-  const [dark, setDark] = useState(
-    () => window.matchMedia('(prefers-color-scheme: dark)').matches,
-  )
+  const [dark, setDark] = useState(isDarkNow)
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = (e: MediaQueryListEvent) => setDark(e.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
+    const update = () => setDark(isDarkNow())
+    mq.addEventListener('change', update)
+    // The toggle writes data-theme on <html>; watch it so charts follow.
+    const mo = new MutationObserver(update)
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => {
+      mq.removeEventListener('change', update)
+      mo.disconnect()
+    }
   }, [])
   return dark
 }

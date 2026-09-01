@@ -30,13 +30,13 @@ export function IntradayForecastChart({ rows, theme }: IntradayForecastChartProp
         <CartesianGrid stroke={theme.grid} vertical={false} />
         <XAxis
           dataKey="time"
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           minTickGap={30}
         />
         <YAxis
           yAxisId="offered"
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           width={44}
           label={{
@@ -44,13 +44,13 @@ export function IntradayForecastChart({ rows, theme }: IntradayForecastChartProp
             angle: -90,
             position: 'insideLeft',
             fill: theme.axis,
-            fontSize: 11,
+            fontSize: 12,
           }}
         />
         <YAxis
           yAxisId="aht"
           orientation="right"
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           width={44}
           label={{
@@ -58,7 +58,7 @@ export function IntradayForecastChart({ rows, theme }: IntradayForecastChartProp
             angle: 90,
             position: 'insideRight',
             fill: theme.axis,
-            fontSize: 11,
+            fontSize: 12,
           }}
         />
         <Tooltip

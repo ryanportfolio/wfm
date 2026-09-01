@@ -1,0 +1,171 @@
+<!doctype html>
+<!--
+  Source for public/og.png (the Open Graph / Twitter card image).
+  Regenerate: open this file in a browser at exactly 1200x630 and screenshot
+  the page (e.g. Playwright with a 1200x630 viewport), then save the capture
+  as public/og.png. Colors are the app's dark palette plus the Okabe-Ito
+  chart colors from src/ui/theme.ts.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>OG card source</title>
+    <style>
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 100 900;
+        src: url('../public/fonts/InterVariable.woff2') format('woff2');
+      }
+
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+
+      body {
+        background: #12151a;
+        color: #e7ebf2;
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+        position: relative;
+      }
+
+      .card {
+        position: absolute;
+        inset: 0;
+        padding: 72px 80px 0;
+        background: linear-gradient(160deg, #161b22 0%, #12151a 55%, #101318 100%);
+      }
+
+      .kicker {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #9aa4b2;
+      }
+
+      .kicker .mark {
+        display: inline-flex;
+        gap: 4px;
+        align-items: flex-end;
+        height: 26px;
+      }
+
+      .kicker .mark i {
+        display: block;
+        width: 7px;
+        border-radius: 2px;
+      }
+
+      h1 {
+        margin-top: 26px;
+        font-size: 64px;
+        line-height: 1.08;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        max-width: 900px;
+      }
+
+      .tagline {
+        margin-top: 22px;
+        font-size: 28px;
+        line-height: 1.35;
+        color: #b8c0cc;
+        max-width: 820px;
+      }
+
+      .methods {
+        margin-top: 26px;
+        display: flex;
+        gap: 12px;
+      }
+
+      .methods span {
+        font-size: 17px;
+        font-weight: 600;
+        color: #c7cdd8;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid #2c3440;
+        border-radius: 999px;
+        padding: 7px 16px;
+        white-space: nowrap;
+      }
+
+      .chart {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="kicker">
+        <span class="mark" aria-hidden="true">
+          <i style="height: 14px; background: #0072b2"></i>
+          <i style="height: 26px; background: #d55e00"></i>
+          <i style="height: 20px; background: #009e73"></i>
+        </span>
+        Runs entirely in the browser
+      </div>
+      <h1>WFM Forecast &amp; Staffing Workbench</h1>
+      <p class="tagline">
+        Forecast contact volume, prove the accuracy with rolling-origin backtests, staff the
+        intervals with Erlang A/C.
+      </p>
+      <div class="methods">
+        <span>Seasonal moving average</span>
+        <span>Holt-Winters</span>
+        <span>Dynamic harmonic regression</span>
+        <span>Inverse-WAPE ensemble</span>
+      </div>
+    </div>
+
+    <!-- Chart motif: history bars, then a forecast line inside a shaded band. -->
+    <svg class="chart" width="1200" height="190" viewBox="0 0 1200 190" aria-hidden="true">
+      <!-- History bars (Okabe-Ito blue) -->
+      <g fill="#0072b2" opacity="0.85">
+        <rect x="40" y="120" width="34" height="70" rx="3" />
+        <rect x="86" y="96" width="34" height="94" rx="3" />
+        <rect x="132" y="108" width="34" height="82" rx="3" />
+        <rect x="178" y="72" width="34" height="118" rx="3" />
+        <rect x="224" y="88" width="34" height="102" rx="3" />
+        <rect x="270" y="60" width="34" height="130" rx="3" />
+        <rect x="316" y="84" width="34" height="106" rx="3" />
+        <rect x="362" y="52" width="34" height="138" rx="3" />
+        <rect x="408" y="78" width="34" height="112" rx="3" />
+        <rect x="454" y="64" width="34" height="126" rx="3" />
+        <rect x="500" y="92" width="34" height="98" rx="3" />
+        <rect x="546" y="58" width="34" height="132" rx="3" />
+      </g>
+      <!-- Forecast start divider -->
+      <line x1="605" y1="16" x2="605" y2="190" stroke="#2c3440" stroke-width="2" stroke-dasharray="6 6" />
+      <!-- Shaded 80% band (Okabe-Ito orange, translucent) -->
+      <path
+        d="M 605 96 C 680 74, 760 118, 840 92 C 920 66, 1000 108, 1080 78 C 1120 64, 1160 70, 1195 60 L 1195 158 C 1160 150, 1120 160, 1080 152 C 1000 176, 920 140, 840 164 C 760 186, 680 146, 605 160 Z"
+        fill="#e69f00"
+        opacity="0.18"
+      />
+      <!-- Forecast line -->
+      <path
+        d="M 605 128 C 680 108, 760 152, 840 128 C 920 104, 1000 142, 1080 115 C 1120 102, 1160 112, 1195 104"
+        fill="none"
+        stroke="#e69f00"
+        stroke-width="5"
+        stroke-linecap="round"
+      />
+    </svg>
+  </body>
+</html>

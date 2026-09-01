@@ -238,7 +238,7 @@ describe('requiredAgents', () => {
   })
 })
 
-describe('erlangA staffing below offered load (codex review fix)', () => {
+describe('erlangA staffing below offered load', () => {
   it('finds the minimal N even below ceil(A) when abandonment makes it feasible', () => {
     // A = 3600 * 240 / 1800 = 480 erlangs, impatient callers (30 s patience):
     // SL 80% in 60 s is met well below the offered load.

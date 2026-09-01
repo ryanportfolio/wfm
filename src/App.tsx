@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { IntervalRecord } from './engine/types'
 import type { CsvError } from './engine/csv'
 import { parseCsv } from './engine/csv'
+import { errorMessage } from './ui/errors'
 import { generateSampleData } from './engine/sampleData'
-import { runForecast } from './engine/forecastPipeline'
+import { forecastInWorker } from './ui/workerClient'
 import type { ForecastResult } from './engine/forecastPipeline'
 import { Tabs } from './ui/Tabs'
 import type { TabId } from './ui/Tabs'
@@ -13,6 +14,7 @@ import type { Horizon } from './ui/ForecastTab'
 import { AccuracyTab } from './ui/AccuracyTab'
 import { StaffingTab } from './ui/StaffingTab'
 import { EmptyState } from './ui/EmptyState'
+import { ThemeToggle } from './ui/ThemeToggle'
 import { useChartTheme } from './ui/theme'
 
 export default function App() {
@@ -21,6 +23,7 @@ export default function App() {
   const [records, setRecords] = useState<IntervalRecord[] | null>(null)
   const [csvErrors, setCsvErrors] = useState<CsvError[]>([])
   const [sourceLabel, setSourceLabel] = useState('')
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState(false)
   const [queueChoice, setQueueChoice] = useState('')
   const [horizon, setHorizon] = useState<Horizon>(14)
@@ -35,25 +38,64 @@ export default function App() {
   // The chosen queue survives data reloads when it still exists.
   const queue = queues.includes(queueChoice) ? queueChoice : queues[0] ?? ''
 
-  // Memoized per (data, queue, horizon) so tab switches never recompute.
+  // Cached per (queue, horizon) so tab switches never recompute; the cache is
+  // cleared when a new dataset loads. Cache misses compute in the worker, so
+  // the forecast arrives async and the UI shows a computing card meanwhile.
   const forecastCache = useRef(new Map<string, ForecastResult>())
-  const forecast = useMemo(() => {
-    if (!records || !queue) return null
-    const key = `${queue}|${horizon}`
-    let f = forecastCache.current.get(key)
-    if (!f) {
-      f = runForecast(records, queue, { horizonDays: horizon })
-      forecastCache.current.set(key, f)
+  const [forecast, setForecast] = useState<ForecastResult | null>(null)
+  const [forecastError, setForecastError] = useState<string | null>(null)
+  useEffect(() => {
+    // The sync setForecast calls below reset request state when the inputs
+    // change; the real value arrives from the worker's async response.
+    if (!records || !queue) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale forecast when the dataset goes away
+      setForecast(null)
+      return
     }
-    return f
+    const key = `${queue}|${horizon}`
+    const cached = forecastCache.current.get(key)
+    if (cached) {
+      setForecast(cached)
+      return
+    }
+    setForecast(null)
+    let stale = false
+    forecastInWorker(records, queue, { horizonDays: horizon })
+      .then((f) => {
+        // Only a live request may cache: a stale one may have computed from a
+        // dataset that was replaced after this effect ran, and writing it back
+        // would poison the fresh cache under the same queue|horizon key.
+        if (!stale) {
+          forecastCache.current.set(key, f)
+          setForecast(f)
+        }
+      })
+      .catch((err) => {
+        if (!stale) setForecastError(errorMessage(err))
+      })
+    return () => {
+      stale = true
+    }
   }, [records, queue, horizon])
 
+  // Surface a failed forecast the same way the old synchronous throw did:
+  // through the app-level error boundary.
+  if (forecastError) throw new Error(`Forecast failed: ${forecastError}`)
+
   const setData = (recs: IntervalRecord[], errors: CsvError[], label: string) => {
-    forecastCache.current.clear()
     setCsvErrors(errors)
     if (recs.length > 0) {
+      forecastCache.current.clear()
       setRecords(recs)
       setSourceLabel(label)
+      setLoadError(null)
+    } else {
+      // Nothing usable came in: keep the current dataset and say so explicitly.
+      setLoadError(
+        records
+          ? `Load of "${label}" failed: no valid rows. Still showing: ${sourceLabel}.`
+          : `Load of "${label}" failed: no valid rows. No dataset is loaded.`,
+      )
     }
   }
 
@@ -61,8 +103,13 @@ export default function App() {
     setLoadingSample(true)
     // Yield a frame so the loading state paints before generation blocks.
     setTimeout(() => {
-      setData(generateSampleData(), [], 'Sample dataset (generated)')
-      setLoadingSample(false)
+      try {
+        setData(generateSampleData(), [], 'Sample dataset (generated)')
+      } catch (err) {
+        setLoadError(`Sample data failed: ${errorMessage(err)}. Use the button to try again.`)
+      } finally {
+        setLoadingSample(false)
+      }
     }, 30)
   }
 
@@ -74,22 +121,35 @@ export default function App() {
         setData(recs, errors, file.name)
       })
       .catch(() => {
-        setCsvErrors([{ row: 1, message: 'could not read the file' }])
+        setData([], [{ row: 1, message: 'could not read the file' }], file.name)
       })
   }
 
   const hasData = records !== null && queue !== ''
 
+  // Shown in forecast-dependent tabs while the worker computes a cache miss.
+  const computingCard = (
+    <div className="card">
+      <p className="note" style={{ margin: 0 }}>
+        <span className="spinner" /> Computing the forecast...
+      </p>
+    </div>
+  )
+
   return (
     <>
       <header className="app-header">
-        <div className="app-title">WFM Forecast &amp; Staffing Workbench</div>
+        <h1 className="app-title">WFM Forecast &amp; Staffing Workbench</h1>
         <Tabs active={tab} onChange={setTab} />
         <div className="header-spacer" />
         {hasData && (
           <div className="queue-picker">
-            <span>Queue</span>
-            <select value={queue} onChange={(e) => setQueueChoice(e.target.value)}>
+            <label htmlFor="queue-select">Queue</label>
+            <select
+              id="queue-select"
+              value={queue}
+              onChange={(e) => setQueueChoice(e.target.value)}
+            >
               {queues.map((q) => (
                 <option key={q} value={q}>
                   {q}
@@ -98,15 +158,17 @@ export default function App() {
             </select>
           </div>
         )}
+        <ThemeToggle />
       </header>
 
       <main className="container">
-        <div hidden={tab !== 'data'}>
+        <div hidden={tab !== 'data'} role="tabpanel" id="panel-data" aria-labelledby="tab-data">
           <DataTab
             records={records}
             csvErrors={csvErrors}
             loadingSample={loadingSample}
             sourceLabel={sourceLabel}
+            loadError={loadError}
             queues={queues}
             queue={queue}
             forecast={forecast}
@@ -116,7 +178,12 @@ export default function App() {
           />
         </div>
 
-        <div hidden={tab !== 'forecast'}>
+        <div
+          hidden={tab !== 'forecast'}
+          role="tabpanel"
+          id="panel-forecast"
+          aria-labelledby="tab-forecast"
+        >
           {hasData && forecast ? (
             <ForecastTab
               records={records}
@@ -126,34 +193,48 @@ export default function App() {
               theme={theme}
               onHorizonChange={setHorizon}
             />
+          ) : hasData ? (
+            computingCard
           ) : (
             <EmptyState
-              title="No data loaded"
-              text="Load the sample dataset or upload a CSV to build a forecast."
+              title="No data to forecast yet"
+              text="Once data is loaded, this tab shows a daily forecast chart with a calibrated 80% range, an intraday volume and AHT view, and the blend weights the ensemble fitted per horizon bucket."
               onGoData={() => setTab('data')}
             />
           )}
         </div>
 
-        <div hidden={tab !== 'accuracy'}>
+        <div
+          hidden={tab !== 'accuracy'}
+          role="tabpanel"
+          id="panel-accuracy"
+          aria-labelledby="tab-accuracy"
+        >
           {hasData ? (
             <AccuracyTab records={records} queue={queue} theme={theme} />
           ) : (
             <EmptyState
-              title="No data loaded"
-              text="Load the sample dataset or upload a CSV to backtest forecast accuracy."
+              title="No data to backtest yet"
+              text="Once data is loaded, this tab scores every forecast method on held-out history: a WAPE, MAPE, and bias scorecard at interval, daily, and weekly grain, plus accuracy by lead time."
               onGoData={() => setTab('data')}
             />
           )}
         </div>
 
-        <div hidden={tab !== 'staffing'}>
+        <div
+          hidden={tab !== 'staffing'}
+          role="tabpanel"
+          id="panel-staffing"
+          aria-labelledby="tab-staffing"
+        >
           {hasData && forecast ? (
             <StaffingTab forecast={forecast} queue={queue} horizon={horizon} theme={theme} />
+          ) : hasData ? (
+            computingCard
           ) : (
             <EmptyState
-              title="No data loaded"
-              text="Load the sample dataset or upload a CSV to compute staffing requirements."
+              title="No data to staff against yet"
+              text="Once data is loaded, this tab turns the forecast into agents needed per 30-minute interval, with a scenario panel for service level, shrinkage, patience, and chat concurrency."
               onGoData={() => setTab('data')}
             />
           )}

@@ -62,8 +62,13 @@ export default function App() {
     let stale = false
     forecastInWorker(records, queue, { horizonDays: horizon })
       .then((f) => {
-        forecastCache.current.set(key, f)
-        if (!stale) setForecast(f)
+        // Only a live request may cache: a stale one may have computed from a
+        // dataset that was replaced after this effect ran, and writing it back
+        // would poison the fresh cache under the same queue|horizon key.
+        if (!stale) {
+          forecastCache.current.set(key, f)
+          setForecast(f)
+        }
       })
       .catch((err) => {
         if (!stale) setForecastError(errorMessage(err))

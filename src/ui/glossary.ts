@@ -16,6 +16,11 @@ export const GLOSSARY = {
     definition:
       'Average handle time: the seconds an agent spends per contact, talk plus wrap-up. An AHT of 300 s means a typical contact takes 5 minutes of agent time.',
   },
+  ensemble: {
+    label: 'Ensemble',
+    definition:
+      'A forecast that blends several methods, giving more say to whichever has been most accurate. Blends usually beat any single method over time.',
+  },
   wape: {
     label: 'WAPE',
     definition:
@@ -64,7 +69,7 @@ export const GLOSSARY = {
   dhr: {
     label: 'DHR',
     definition:
-      'Dynamic harmonic regression: a model that fits sine and cosine waves at weekly and yearly cycle lengths, plus a trend, so it tracks smooth repeating seasonal shapes.',
+      'Dynamic harmonic regression: a model that fits smooth repeating wave shapes (sines and cosines) at weekly and yearly lengths, plus a trend, so it tracks seasonal patterns.',
   },
   erlang: {
     label: 'Erlang A vs C',

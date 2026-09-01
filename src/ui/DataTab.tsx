@@ -100,10 +100,11 @@ export function DataTab({
         <div className="card-title">
           <h2>Load interval history</h2>
           <span className="card-subtitle">
-            30-minute contact volumes and AHT per queue. CSV header: {CSV_HEADER}
+            One row per half hour: contacts that arrived and average handle time, per queue. CSV
+            header: {CSV_HEADER}
           </span>
         </div>
-        <div className="row">
+        <div className="row" data-tour="load-data">
           <button
             type="button"
             className="btn btn-primary"
@@ -240,12 +241,14 @@ export function DataTab({
           </div>
 
           {forecast && (
-            <div className="card">
+            <div className="card" data-tour="cleaning">
               <div className="card-title">
                 <h2>Cleaning report</h2>
                 <span className="card-subtitle">
-                  <Term term="mad">MAD</Term> outlier flags per (weekday, interval) cell; flagged
-                  values replaced by the cell median before fitting.
+                  Odd spikes and dips get smoothed before forecasting: a value is flagged when it
+                  sits far outside what is normal for that weekday and time of day (a{' '}
+                  <Term term="mad">MAD</Term> test) and is replaced with the typical value for
+                  that slot.
                 </span>
               </div>
               <div className="row" style={{ marginBottom: 12 }}>

@@ -374,6 +374,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
       <div className="stack">
         <ScenarioPanel
           title={compare ? 'Scenario A' : 'Scenario'}
+          dataTour="scenario"
           state={stateA}
           isChatQueue={isChat}
           onChange={(patch) => setStateA((s) => seedHeads(s, patch, summaryA))}
@@ -418,8 +419,8 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               onChange={(e) => setCostText(e.target.value)}
             />
             <div className="slider-hint">
-              Scheduled FTE-hours times this rate, in your currency unit. Plain multiplication:
-              no overtime or loaded-cost math. Leave blank to hide cost.
+              Scheduled hours times this rate, in whatever currency you use. Simple
+              multiplication only: no overtime or benefits math. Leave blank to hide cost.
             </div>
           </div>
         </div>
@@ -441,7 +442,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
       <div className="stack">
         <div className="row">
           <h2>
-            Staffing for the {horizon}-day ensemble forecast: {queue}
+            Staffing plan, next {horizon} days: {queue}
           </h2>
           {computing && (
             <span className="note">
@@ -476,11 +477,11 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
         )}
 
         {summaryA && (
-          <div className="cards-row">
+          <div className="cards-row" data-tour="staffing-results">
             <div className="card">
               <div className="metric-label">Peak scheduled agents</div>
               <div className="metric-value">{fmtNum(summaryA.peakScheduled, 1)}</div>
-              <div className="metric-sub">scheduled heads in the busiest interval, after shrinkage</div>
+              <div className="metric-sub">people to schedule for the busiest half hour, breaks and meetings included</div>
               {summaryB && (
                 <div
                   className={`metric-delta ${deltaClass(
@@ -541,7 +542,8 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                   {fmtPct(summaryA.weightedSl)}
                 </div>
                 <div className="metric-sub">
-                  volume-weighted, vs the {fmtPct(slTargetA, 0)} target
+                  average across the day, busy times counting most, vs the {fmtPct(slTargetA, 0)}{' '}
+                  target
                 </div>
                 {summaryB && (
                   <div
@@ -561,7 +563,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                 Weighted avg <Term term="occupancy">occupancy</Term>
               </div>
               <div className="metric-value">{fmtPct(summaryA.weightedOcc)}</div>
-              <div className="metric-sub">volume-weighted across intervals</div>
+              <div className="metric-sub">share of time spent handling contacts; busy intervals count most</div>
               {summaryB && (
                 // Occupancy has no clean better direction (higher is cheaper
                 // but harder on agents), so the delta stays neutral.
@@ -573,13 +575,13 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           </div>
         )}
 
-        <div className="card">
+        <div className="card" data-tour="staffing-chart">
           <div className="card-title">
             <h2>Interval staffing{compare ? ': scenario A' : ''}</h2>
             <span className="card-subtitle">
               {fixedA
-                ? 'Bars: your scheduled heads (red where the SL target is missed). Line: bodies needed on the phones for the target.'
-                : 'Bars: scheduled agents. Line: bodies required on the phones.'}
+                ? 'Bars: the people you said you have (red where service falls short). Line: people needed on the phones to hit the target.'
+                : 'Bars: people to schedule. Line: people needed on the phones (cover for breaks and meetings comes on top).'}
             </span>
             <span style={{ flex: 1 }} />
             <button
@@ -630,7 +632,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                   )} target at your staffing.`
                 : `All ${chartRows.length} intervals this day meet the ${fmtPct(slTargetA, 0)} target at your staffing.`}
               {dayUnstable > 0 &&
-                ` In ${dayUnstable} of them the queue grows without bound at this volume (Erlang C: load meets or exceeds bodies on phones).`}
+                ` In ${dayUnstable} of them the queue would keep growing all interval because arrivals outpace the people on phones (Erlang C calls this unstable).`}
             </p>
           )}
         </div>
@@ -640,8 +642,9 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             <div className="card-title">
               <h2>Daily summary{compare ? ': scenario A' : ''}</h2>
               <span className="card-subtitle">
-                SL, ASA, and abandonment are volume-weighted projections at the staffed level.
-                Peak on phones is bodies handling contacts, before shrinkage.
+                Service level, answer speed, and abandonment are projections at this staffing,
+                busy times counting most. Peak on phones counts people actually handling contacts,
+                before adding cover for breaks and meetings.
               </span>
               <span style={{ flex: 1 }} />
               <button
@@ -734,16 +737,17 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             <h2>Model assumptions</h2>
           </div>
           <p className="note" style={{ marginBottom: 0 }}>
-            Each interval is solved as its own steady-state queue, so callers still waiting at the
-            end of one interval do not carry over into the next; a badly understaffed stretch looks
-            better here than it would in reality. For chat queues, concurrency divides AHT, treating
-            one agent on 2 chats as one agent twice as fast; that ignores the extra variability of
-            juggling chats and assumes AHT was measured at that concurrency. Shrinkage grosses up by
-            division: at 30%, you schedule 10 hours to get 7 on the queue. In "what I have" mode the
-            flat heads apply to every interval with volume; bodies on phones = heads x (1 -
-            shrinkage), rounded down to whole agents, and Erlang C marks an interval unstable when
-            load reaches the bodies. Cost is scheduled hours x your rate, nothing more: no overtime,
-            benefits, or loaded-cost modeling.
+            The math takes shortcuts you should know about. Staffing comes from the blended
+            (ensemble) forecast. Each half hour is solved as its own queue, so callers still
+            waiting at the end of one half hour vanish instead of rolling into the next; a badly
+            understaffed stretch looks better here than it would in real life. For chat, 2 chats
+            at once is treated as one agent working twice as fast, which ignores the juggling cost
+            and assumes handle time was measured at that concurrency. Shrinkage grosses up by
+            division: at 30%, schedule 10 hours to get 7 on the queue. In "what I have" mode your
+            flat headcount applies to every half hour with volume; people on phones = heads x (1 -
+            shrinkage), rounded down, and a half hour is marked unstable when arriving work meets
+            or exceeds the people on phones (Erlang C). Cost is scheduled hours times your rate,
+            nothing else.
           </p>
         </div>
       </div>

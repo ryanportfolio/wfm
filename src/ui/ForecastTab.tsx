@@ -74,13 +74,13 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
 
   return (
     <div className="stack">
-      <div className="card">
+      <div className="card" data-tour="forecast-chart">
         <div className="card-title">
           <h2>Daily forecast: {queue}</h2>
-          <span className="card-subtitle">Last 8 weeks of actuals plus the forecast horizon</span>
+          <span className="card-subtitle">The last 8 weeks of real volume, then the forecast</span>
           <span style={{ flex: 1 }} />
           <div className="row">
-            <span className="note">Horizon</span>
+            <span className="note">Look ahead</span>
             <div className="seg">
               {HORIZONS.map((h) => (
                 <button
@@ -138,14 +138,15 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
         <p className="note" style={{ marginBottom: 0 }}>
           {forecast.band ? (
             <>
-              Shaded range around the ensemble line: 80% of its{' '}
-              <Term term="rollingOrigin">rolling-origin</Term> evaluation errors fell inside this
-              band, pooled per horizon bucket. The range is calibrated on the same evaluation
-              windows used to fit the blend weights, so it can read slightly narrow. It shows and
-              hides with the Ensemble checkbox.
+              The shaded band shows how far off this forecast tends to be. We tested it against
+              past days it had never seen (<Term term="rollingOrigin">rolling-origin</Term> tests):
+              8 times out of 10, the real number landed inside a band this wide. The width comes
+              from those test misses, grouped by how far ahead the day is. One caveat: the same
+              test windows also tuned the blend, so the band can run a little narrow. Untick
+              Ensemble to hide it.
             </>
           ) : (
-            'No shaded range: history is too short to run the evaluation folds that calibrate it.'
+            'No shaded band: there is not enough history to run the accuracy tests that set its width.'
           )}
         </p>
       </div>
@@ -154,7 +155,9 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
         <div className="card">
           <div className="card-title">
             <h2>Intraday forecast</h2>
-            <span className="card-subtitle">Ensemble offered per interval, AHT on the right axis</span>
+            <span className="card-subtitle">
+              Predicted contacts each half hour, with average handle time (AHT) on the right axis
+            </span>
             <span style={{ flex: 1 }} />
             <select
               aria-label="Day shown in the intraday forecast chart"
@@ -186,8 +189,10 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
 
         <div className="card">
           <div className="card-title">
-            <h2>What the ensemble learned</h2>
-            <span className="card-subtitle">Blend weight per component, fitted per horizon bucket</span>
+            <h2>What the blend learned</h2>
+            <span className="card-subtitle">
+              How much each method counts, by how far ahead the forecast reaches
+            </span>
           </div>
           <div className="table-wrap">
           <table className="table">
@@ -219,14 +224,15 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
           </div>
           <p className="note" style={{ marginBottom: 0 }}>
             {forecast.weights.fallbackEqual ? (
-              'Equal weights: history is below the minimum needed to fit weights.'
+              'Equal shares: there is not enough history to test which method deserves more.'
             ) : (
               <>
-                Weights are proportional to inverse <Term term="wape">WAPE</Term> raised to a tuned
-                power, from {forecast.weights.innerFolds} non-overlapping rolling-origin evaluation
-                folds inside the training window, scored against raw actuals. The power comes from
-                a small grid, so the data decides how much to concentrate on the strongest
-                component versus hedging across all three.
+                The blend trusts whichever methods have been most accurate. It ran{' '}
+                {forecast.weights.innerFolds} practice tests on separate slices of history it kept
+                hidden, scored each method against the raw, uncleaned actuals, and gave bigger
+                shares to the methods that missed least (shares follow inverse{' '}
+                <Term term="wape">WAPE</Term> raised to a power; the data picks the power, deciding
+                how hard to back the front-runner versus spreading the bet across all three).
               </>
             )}
           </p>

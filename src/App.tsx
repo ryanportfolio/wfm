@@ -230,7 +230,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to forecast yet"
-              text="Predicted contacts per day, a band the real number lands in 8 times in 10, half-hour volume and handle time, and the blend's three-method mix."
+              text="Load data to get predicted contacts per day, a band the real number lands in 8 times in 10, half-hour volume and handle time, and the blend's three-method mix."
               onGoData={() => setTab('data')}
             />
           )}
@@ -266,7 +266,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to staff against yet"
-              text="People needed per half hour, plus what-if sliders: answer-speed target, time lost to breaks and meetings, caller patience, chats per agent."
+              text="Load data to see people needed per half hour, plus what-if sliders: answer-speed target, time lost to breaks and meetings, caller patience, chats per agent."
               onGoData={() => setTab('data')}
             />
           )}

@@ -429,7 +429,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           disabled={!clipboardOk}
           title={
             clipboardOk
-              ? 'Link restoring these settings'
+              ? 'Copy a link that restores these settings'
               : 'No clipboard access; copy the page address'
           }
           onClick={copyLink}
@@ -624,13 +624,13 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           {fixedA && chartRows.length > 0 && (
             <p className="note" style={{ marginBottom: 0 }}>
               {dayUnderstaffed > 0
-                ? `${dayUnderstaffed} of ${chartRows.length} intervals this day miss the ${fmtPct(
+                ? `${dayUnderstaffed} of ${chartRows.length} intervals on this day miss the ${fmtPct(
                     slTargetA,
                     0,
                   )} target at your headcount.`
-                : `All ${chartRows.length} intervals this day meet the ${fmtPct(slTargetA, 0)} target at your headcount.`}
+                : `All ${chartRows.length} intervals on this day meet the ${fmtPct(slTargetA, 0)} target at your headcount.`}
               {dayUnstable > 0 &&
-                ` In ${dayUnstable} of them the queue grows all interval (Erlang C: unstable).`}
+                ` In ${dayUnstable} of them the queue grows for the whole half hour (Erlang C: unstable).`}
             </p>
           )}
         </div>

@@ -139,7 +139,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
           {forecast.band ? (
             <>
               Shaded band: where the real number landed 8 times in 10 in{' '}
-              <Term term="rollingOrigin">rolling-origin</Term> tests on unseen days; width varies by
+              <Term term="rollingOrigin">rolling-origin</Term> tests on unseen days; width is set per
               days-ahead range. Those tests also tuned the blend, so the band can run slightly narrow.
               Untick Ensemble to hide it.
             </>

@@ -10,6 +10,7 @@ import { LeadTimeChart } from './charts/LeadTimeChart'
 import type { LeadTimeRow } from './charts/LeadTimeChart'
 import { fmtPct, fmtSignedPct } from './format'
 import { errorMessage } from './errors'
+import { Term } from './Term'
 
 type Grain = 'interval' | 'daily' | 'weekly'
 const GRAINS: Grain[] = ['interval', 'daily', 'weekly']
@@ -143,7 +144,8 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
         <div className="card-title">
           <h2>Backtest scorecard: {queue}</h2>
           <span className="card-subtitle">
-            Rolling-origin backtest, 8 folds, 28-day horizon, scored against raw actuals
+            <Term term="rollingOrigin">Rolling-origin</Term> backtest, 8 folds, 28-day horizon,
+            scored against raw actuals
           </span>
           <span style={{ flex: 1 }} />
           <button type="button" className="btn btn-primary" disabled={running} onClick={run}>
@@ -187,14 +189,16 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
                 <thead>
                   <tr>
                     <th>Method</th>
-                    {GRAINS.map((g) => (
+                    {GRAINS.map((g, i) => (
                       <th key={`w-${g}`} className="num">
-                        WAPE {GRAIN_LABELS[g].toLowerCase()}
+                        {i === 0 ? <Term term="wape">WAPE</Term> : 'WAPE'}{' '}
+                        {GRAIN_LABELS[g].toLowerCase()}
                       </th>
                     ))}
-                    {GRAINS.map((g) => (
+                    {GRAINS.map((g, i) => (
                       <th key={`m-${g}`} className="num">
-                        MAPE {GRAIN_LABELS[g].toLowerCase()}
+                        {i === 0 ? <Term term="mape">MAPE</Term> : 'MAPE'}{' '}
+                        {GRAIN_LABELS[g].toLowerCase()}
                       </th>
                     ))}
                     {GRAINS.map((g) => (

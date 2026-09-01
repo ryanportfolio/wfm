@@ -10,6 +10,7 @@ import { StaffingIntervalChart } from './charts/StaffingIntervalChart'
 import type { StaffingRow } from './charts/StaffingIntervalChart'
 import { fmtDateWeekday, fmtInt, fmtNum, fmtPct, fmtSec, fmtSigned } from './format'
 import { errorMessage } from './errors'
+import { Term } from './Term'
 
 interface StaffingTabProps {
   forecast: ForecastResult
@@ -309,7 +310,7 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             <div className="card">
               <div className="metric-label">Peak scheduled agents</div>
               <div className="metric-value">{fmtNum(summaryA.peakScheduled, 1)}</div>
-              <div className="metric-sub">busiest interval, after shrinkage</div>
+              <div className="metric-sub">scheduled heads in the busiest interval, after shrinkage</div>
               {summaryB && (
                 <div className="metric-delta">
                   B minus A: {fmtSigned(summaryB.peakScheduled - summaryA.peakScheduled, 1)}
@@ -317,7 +318,9 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               )}
             </div>
             <div className="card">
-              <div className="metric-label">Scheduled FTE-hours, horizon total</div>
+              <div className="metric-label">
+                Scheduled <Term term="fte">FTE-hours</Term>, horizon total
+              </div>
               <div className="metric-value">{fmtInt(summaryA.totalScheduledFte)}</div>
               {summaryB && (
                 <div className="metric-delta">
@@ -326,7 +329,9 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               )}
             </div>
             <div className="card">
-              <div className="metric-label">Weighted avg occupancy</div>
+              <div className="metric-label">
+                Weighted avg <Term term="occupancy">occupancy</Term>
+              </div>
               <div className="metric-value">{fmtPct(summaryA.weightedOcc)}</div>
               <div className="metric-sub">volume-weighted across intervals</div>
               {summaryB && (
@@ -345,7 +350,11 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               Bars: scheduled agents. Line: bodies required on the phones.
             </span>
             <span style={{ flex: 1 }} />
-            <select value={day} onChange={(e) => setSelectedDay(e.target.value)}>
+            <select
+              aria-label="Day shown in the interval staffing chart"
+              value={day}
+              onChange={(e) => setSelectedDay(e.target.value)}
+            >
               {dates.map((d) => (
                 <option key={d} value={d}>
                   {fmtDateWeekday(d)}
@@ -367,7 +376,8 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             <div className="card-title">
               <h2>Daily summary{compare ? ': scenario A' : ''}</h2>
               <span className="card-subtitle">
-                SL, ASA, and abandonment are volume-weighted projections at the staffed level
+                SL, ASA, and abandonment are volume-weighted projections at the staffed level.
+                Peak on phones is bodies handling contacts, before shrinkage.
               </span>
             </div>
             <div className="scroll" style={{ maxHeight: 420 }}>
@@ -378,10 +388,16 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                     <th className="num">Contacts</th>
                     <th className="num">Required FTE-h</th>
                     <th className="num">Scheduled FTE-h</th>
-                    <th className="num">Peak agents</th>
-                    <th className="num">SL</th>
-                    <th className="num">ASA</th>
-                    <th className="num">Abandon</th>
+                    <th className="num">Peak on phones</th>
+                    <th className="num">
+                      <Term term="sl">SL</Term>
+                    </th>
+                    <th className="num">
+                      <Term term="asa">ASA</Term>
+                    </th>
+                    <th className="num">
+                      <Term term="abandonment">Abandon</Term>
+                    </th>
                     {summaryB && <th className="num">Sched. FTE-h (B)</th>}
                     {summaryB && <th className="num">B minus A</th>}
                   </tr>
@@ -412,6 +428,20 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
             </div>
           </div>
         )}
+
+        <div className="card">
+          <div className="card-title">
+            <h2>Model assumptions</h2>
+          </div>
+          <p className="note" style={{ marginBottom: 0 }}>
+            Each interval is solved as its own steady-state queue, so callers still waiting at the
+            end of one interval do not carry over into the next; a badly understaffed stretch looks
+            better here than it would in reality. For chat queues, concurrency divides AHT, treating
+            one agent on 2 chats as one agent twice as fast; that ignores the extra variability of
+            juggling chats and assumes AHT was measured at that concurrency. Shrinkage grosses up by
+            division: at 30%, you schedule 10 hours to get 7 on the queue.
+          </p>
+        </div>
       </div>
     </div>
   )

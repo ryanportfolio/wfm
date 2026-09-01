@@ -1,6 +1,7 @@
 import type { ErlangMode } from '../../engine/erlang'
 import type { Scenario } from '../../engine/staffing'
 import { Slider } from './Slider'
+import { Term } from '../Term'
 import { fmtPct, fmtSignedPct } from '../format'
 
 /** UI slider state for one scenario. Percent fields are whole percents. */
@@ -66,7 +67,9 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
 
       <div className="slider-row">
         <div className="slider-head">
-          <span>Erlang mode</span>
+          <span>
+            <Term term="erlang">Erlang mode</Term>
+          </span>
         </div>
         <div className="seg">
           <button
@@ -91,6 +94,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
 
       <Slider
         label="Service level target"
+        term="sl"
         value={state.slPct}
         min={50}
         max={95}
@@ -108,6 +112,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
       />
       <Slider
         label="Mean patience"
+        term="meanPatience"
         value={state.patienceSec}
         min={30}
         max={300}
@@ -130,6 +135,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
       </div>
       <Slider
         label="Max abandonment"
+        term="abandonment"
         value={state.maxAbandonPct}
         min={1}
         max={15}
@@ -140,6 +146,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
 
       <Slider
         label="Shrinkage"
+        term="shrinkage"
         value={state.shrinkagePct}
         min={0}
         max={50}
@@ -148,6 +155,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
       />
       <Slider
         label="Occupancy cap"
+        term="occupancy"
         value={state.occupancyCapPct}
         min={75}
         max={95}
@@ -174,6 +182,7 @@ export function ScenarioPanel({ title, state, isChatQueue, onChange }: ScenarioP
       />
       <Slider
         label="AHT delta"
+        term="aht"
         value={state.ahtDeltaPct}
         min={-20}
         max={20}

@@ -98,13 +98,17 @@ export default function App() {
   return (
     <>
       <header className="app-header">
-        <div className="app-title">WFM Forecast &amp; Staffing Workbench</div>
+        <h1 className="app-title">WFM Forecast &amp; Staffing Workbench</h1>
         <Tabs active={tab} onChange={setTab} />
         <div className="header-spacer" />
         {hasData && (
           <div className="queue-picker">
-            <span>Queue</span>
-            <select value={queue} onChange={(e) => setQueueChoice(e.target.value)}>
+            <label htmlFor="queue-select">Queue</label>
+            <select
+              id="queue-select"
+              value={queue}
+              onChange={(e) => setQueueChoice(e.target.value)}
+            >
               {queues.map((q) => (
                 <option key={q} value={q}>
                   {q}
@@ -116,7 +120,7 @@ export default function App() {
       </header>
 
       <main className="container">
-        <div hidden={tab !== 'data'}>
+        <div hidden={tab !== 'data'} role="tabpanel" id="panel-data" aria-labelledby="tab-data">
           <DataTab
             records={records}
             csvErrors={csvErrors}
@@ -132,7 +136,12 @@ export default function App() {
           />
         </div>
 
-        <div hidden={tab !== 'forecast'}>
+        <div
+          hidden={tab !== 'forecast'}
+          role="tabpanel"
+          id="panel-forecast"
+          aria-labelledby="tab-forecast"
+        >
           {hasData && forecast ? (
             <ForecastTab
               records={records}
@@ -144,32 +153,42 @@ export default function App() {
             />
           ) : (
             <EmptyState
-              title="No data loaded"
-              text="Load the sample dataset or upload a CSV to build a forecast."
+              title="No data to forecast yet"
+              text="Once data is loaded, this tab shows a daily forecast chart with a calibrated 80% range, an intraday volume and AHT view, and the blend weights the ensemble fitted per horizon bucket."
               onGoData={() => setTab('data')}
             />
           )}
         </div>
 
-        <div hidden={tab !== 'accuracy'}>
+        <div
+          hidden={tab !== 'accuracy'}
+          role="tabpanel"
+          id="panel-accuracy"
+          aria-labelledby="tab-accuracy"
+        >
           {hasData ? (
             <AccuracyTab records={records} queue={queue} theme={theme} />
           ) : (
             <EmptyState
-              title="No data loaded"
-              text="Load the sample dataset or upload a CSV to backtest forecast accuracy."
+              title="No data to backtest yet"
+              text="Once data is loaded, this tab scores every forecast method on held-out history: a WAPE, MAPE, and bias scorecard at interval, daily, and weekly grain, plus accuracy by lead time."
               onGoData={() => setTab('data')}
             />
           )}
         </div>
 
-        <div hidden={tab !== 'staffing'}>
+        <div
+          hidden={tab !== 'staffing'}
+          role="tabpanel"
+          id="panel-staffing"
+          aria-labelledby="tab-staffing"
+        >
           {hasData && forecast ? (
             <StaffingTab forecast={forecast} queue={queue} horizon={horizon} theme={theme} />
           ) : (
             <EmptyState
-              title="No data loaded"
-              text="Load the sample dataset or upload a CSV to compute staffing requirements."
+              title="No data to staff against yet"
+              text="Once data is loaded, this tab turns the forecast into agents needed per 30-minute interval, with a scenario panel for service level, shrinkage, patience, and chat concurrency."
               onGoData={() => setTab('data')}
             />
           )}

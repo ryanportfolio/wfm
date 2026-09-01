@@ -7,6 +7,7 @@ import { toDailySeries } from '../engine/series'
 import type { ChartTheme } from './theme'
 import { DailyHistoryChart } from './charts/DailyHistoryChart'
 import { fmtDateLong, fmtInt, fmtNum } from './format'
+import { Term } from './Term'
 
 interface DataTabProps {
   records: IntervalRecord[] | null
@@ -215,7 +216,9 @@ export function DataTab({
               <div className="metric-value">{fmtInt(summary.total)}</div>
             </div>
             <div className="card">
-              <div className="metric-label">Avg AHT ({queue})</div>
+              <div className="metric-label">
+                Avg <Term term="aht">AHT</Term> ({queue})
+              </div>
               <div className="metric-value">{fmtNum(summary.avgAht, 0)} s</div>
               <div className="metric-sub">volume-weighted</div>
             </div>
@@ -233,7 +236,9 @@ export function DataTab({
 
           <div className="card">
             <div className="card-title">
-              <h2>Daily contacts offered: {queue}</h2>
+              <h2>
+                Daily <Term term="offered">contacts offered</Term>: {queue}
+              </h2>
               <span className="card-subtitle">Full history</span>
             </div>
             <DailyHistoryChart points={daily} theme={theme} />
@@ -244,8 +249,8 @@ export function DataTab({
               <div className="card-title">
                 <h2>Cleaning report</h2>
                 <span className="card-subtitle">
-                  MAD outlier flags per (weekday, interval) cell; flagged values replaced by the
-                  cell median before fitting.
+                  <Term term="mad">MAD</Term> outlier flags per (weekday, interval) cell; flagged
+                  values replaced by the cell median before fitting.
                 </span>
               </div>
               <div className="row" style={{ marginBottom: 12 }}>

@@ -1,3 +1,5 @@
+import { useRef } from 'react'
+
 export type TabId = 'data' | 'forecast' | 'accuracy' | 'staffing'
 
 const TABS: { id: TabId; label: string }[] = [
@@ -7,20 +9,59 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'staffing', label: 'Staffing' },
 ]
 
+/**
+ * Roving-tabindex target for a tablist keydown: ArrowLeft/ArrowRight wrap,
+ * Home/End jump to the edges. Returns null for keys the tablist ignores.
+ */
+export function nextTabIndex(current: number, key: string, count: number): number | null {
+  if (count <= 0) return null
+  switch (key) {
+    case 'ArrowRight':
+      return (current + 1) % count
+    case 'ArrowLeft':
+      return (current - 1 + count) % count
+    case 'Home':
+      return 0
+    case 'End':
+      return count - 1
+    default:
+      return null
+  }
+}
+
 interface TabsProps {
   active: TabId
   onChange: (tab: TabId) => void
 }
 
 export function Tabs({ active, onChange }: TabsProps) {
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const onKeyDown = (e: React.KeyboardEvent, current: number) => {
+    const next = nextTabIndex(current, e.key, TABS.length)
+    if (next === null) return
+    e.preventDefault()
+    onChange(TABS[next].id)
+    btnRefs.current[next]?.focus()
+  }
+
   return (
-    <nav className="tabs">
-      {TABS.map((t) => (
+    <nav className="tabs" role="tablist" aria-label="Workbench sections">
+      {TABS.map((t, i) => (
         <button
           key={t.id}
+          ref={(el) => {
+            btnRefs.current[i] = el
+          }}
           type="button"
+          role="tab"
+          id={`tab-${t.id}`}
+          aria-selected={active === t.id}
+          aria-controls={`panel-${t.id}`}
+          tabIndex={active === t.id ? 0 : -1}
           className={`tab-btn${active === t.id ? ' active' : ''}`}
           onClick={() => onChange(t.id)}
+          onKeyDown={(e) => onKeyDown(e, i)}
         >
           {t.label}
         </button>

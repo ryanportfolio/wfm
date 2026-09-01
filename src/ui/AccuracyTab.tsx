@@ -25,6 +25,18 @@ const SCORE_METHOD_LABELS: Record<ScoreMethod, string> = {
   equal: 'Equal-weight blend',
 }
 
+/**
+ * Bias color: the sign already shows direction, the color shows severity.
+ * Within 1% of volume reads as calibrated (muted); 5% or more in either
+ * direction is a real over- or under-forecast (bad); in between stays default.
+ */
+function biasClass(bias: number): string {
+  const abs = Math.abs(bias)
+  if (abs < 0.01) return ' delta-neutral'
+  if (abs >= 0.05) return ' delta-bad'
+  return ''
+}
+
 interface AccuracyTabProps {
   records: IntervalRecord[]
   queue: string
@@ -231,7 +243,10 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
                       {GRAINS.map((g) => {
                         const s = scoreOf(m, g) as BacktestScore
                         return (
-                          <td key={`b-${g}`} className={`num${best.get(`bias|${g}`) === m ? ' best' : ''}`}>
+                          <td
+                            key={`b-${g}`}
+                            className={`num${best.get(`bias|${g}`) === m ? ' best' : ''}${biasClass(s.bias)}`}
+                          >
                             {fmtSignedPct(s.bias)}
                           </td>
                         )

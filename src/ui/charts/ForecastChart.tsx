@@ -39,13 +39,13 @@ export function ForecastChart({ rows, lastActualDate, visible, theme }: Forecast
         <XAxis
           dataKey="date"
           tickFormatter={fmtDateShort}
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           minTickGap={40}
         />
         <YAxis
           tickFormatter={fmtCompact}
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           width={48}
         />
@@ -63,7 +63,7 @@ export function ForecastChart({ rows, lastActualDate, visible, theme }: Forecast
           x={lastActualDate}
           stroke={theme.axis}
           strokeDasharray="4 4"
-          label={{ value: 'Forecast start', fill: theme.axis, fontSize: 11, position: 'insideTopRight' }}
+          label={{ value: 'Forecast start', fill: theme.axis, fontSize: 12, position: 'insideTopRight' }}
         />
         {visible.ensemble && (
           <Area

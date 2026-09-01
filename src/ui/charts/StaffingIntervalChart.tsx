@@ -31,12 +31,12 @@ export function StaffingIntervalChart({ rows, theme }: StaffingIntervalChartProp
         <CartesianGrid stroke={theme.grid} vertical={false} />
         <XAxis
           dataKey="time"
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           minTickGap={30}
         />
         <YAxis
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           width={44}
           label={{
@@ -44,7 +44,7 @@ export function StaffingIntervalChart({ rows, theme }: StaffingIntervalChartProp
             angle: -90,
             position: 'insideLeft',
             fill: theme.axis,
-            fontSize: 11,
+            fontSize: 12,
           }}
         />
         <Tooltip

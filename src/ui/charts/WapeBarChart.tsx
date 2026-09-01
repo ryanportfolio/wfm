@@ -31,7 +31,7 @@ export function WapeBarChart({ rows, theme }: WapeBarChartProps) {
         <XAxis dataKey="label" tick={{ fill: theme.axis, fontSize: 12 }} stroke={theme.grid} />
         <YAxis
           tickFormatter={(v) => fmtPct(Number(v), 0)}
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           width={48}
         />

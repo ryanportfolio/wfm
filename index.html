@@ -3,6 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Apply the saved theme choice before first paint to avoid a flash.
+      // Mirrors applyThemePreference in src/ui/theme.ts.
+      try {
+        var savedTheme = localStorage.getItem('wfm-theme')
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', savedTheme)
+        }
+      } catch (e) {
+        /* storage unavailable: system preference decides */
+      }
+    </script>
+    <link
+      rel="preload"
+      href="./fonts/InterVariable.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='8' width='3' height='7' fill='%230072B2'/%3E%3Crect x='6' y='4' width='3' height='11' fill='%23D55E00'/%3E%3Crect x='11' y='6' width='3' height='9' fill='%23009E73'/%3E%3C/svg%3E"
@@ -12,7 +31,9 @@
       name="description"
       content="Browser-only contact center workforce management tool: interval volume forecasting with seasonal average, Holt-Winters and dynamic harmonic regression, rolling-origin backtests, and Erlang A/C staffing with live what-if scenarios."
     />
-    <meta name="theme-color" content="#2f6fed" />
+    <meta name="theme-color" content="#2f6fed" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#12151a" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="https://ryanportfolio.github.io/wfm/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="WFM Forecast &amp; Staffing Workbench" />
     <meta
@@ -21,7 +42,19 @@
     />
     <meta property="og:url" content="https://ryanportfolio.github.io/wfm/" />
     <meta property="og:image" content="https://ryanportfolio.github.io/wfm/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="WFM Forecast and Staffing Workbench: stylized volume bars with a forecast line and range band"
+    />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="WFM Forecast &amp; Staffing Workbench" />
+    <meta
+      name="twitter:description"
+      content="Forecast contact volume, prove accuracy with rolling-origin backtests, and convert the forecast to Erlang A/C staffing. Runs entirely in the browser."
+    />
+    <meta name="twitter:image" content="https://ryanportfolio.github.io/wfm/og.png" />
   </head>
   <body>
     <div id="root"></div>

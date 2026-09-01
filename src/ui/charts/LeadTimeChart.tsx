@@ -33,14 +33,14 @@ export function LeadTimeChart({ rows, theme }: LeadTimeChartProps) {
         <CartesianGrid stroke={theme.grid} vertical={false} />
         <XAxis
           dataKey="lead"
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           minTickGap={16}
-          label={{ value: 'Lead day', fill: theme.axis, fontSize: 11, position: 'insideBottom', dy: 14 }}
+          label={{ value: 'Lead day', fill: theme.axis, fontSize: 12, position: 'insideBottom', dy: 14 }}
         />
         <YAxis
           tickFormatter={(v) => fmtPct(Number(v), 0)}
-          tick={{ fill: theme.axis, fontSize: 11 }}
+          tick={{ fill: theme.axis, fontSize: 12 }}
           stroke={theme.grid}
           width={48}
         />

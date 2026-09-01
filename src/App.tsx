@@ -14,6 +14,7 @@ import type { Horizon } from './ui/ForecastTab'
 import { AccuracyTab } from './ui/AccuracyTab'
 import { StaffingTab } from './ui/StaffingTab'
 import { EmptyState } from './ui/EmptyState'
+import { ThemeToggle } from './ui/ThemeToggle'
 import { useChartTheme } from './ui/theme'
 
 export default function App() {
@@ -117,6 +118,7 @@ export default function App() {
             </select>
           </div>
         )}
+        <ThemeToggle />
       </header>
 
       <main className="container">

@@ -125,6 +125,18 @@ function summarize(
   }
 }
 
+/**
+ * CSS class for a B-minus-A delta. `lowerIsBetter` encodes the metric's sign
+ * semantics: fewer FTE-hours or fewer peak agents cost less, so a negative
+ * delta is good; a delta that rounds to zero at `eps` display precision stays
+ * neutral.
+ */
+function deltaClass(delta: number, lowerIsBetter: boolean, eps: number): string {
+  if (Math.abs(delta) < eps) return 'delta-neutral'
+  const good = lowerIsBetter ? delta < 0 : delta > 0
+  return good ? 'delta-good' : 'delta-bad'
+}
+
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value)
   useEffect(() => {
@@ -247,24 +259,24 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           isChatQueue={isChat}
           onChange={(patch) => setStateA((s) => ({ ...s, ...patch }))}
         />
-        <div className="card">
-          <div className="check-row" style={{ marginBottom: 0 }}>
-            <input
-              type="checkbox"
-              id="compare-scenario"
-              checked={compare}
-              onChange={(e) => toggleCompare(e.target.checked)}
-            />
-            <label htmlFor="compare-scenario">Compare scenario</label>
-          </div>
-        </div>
-        {compare && stateB && (
-          <ScenarioPanel
-            title="Scenario B"
-            state={stateB}
-            isChatQueue={isChat}
-            onChange={(patch) => setStateB((s) => (s ? { ...s, ...patch } : s))}
-          />
+        {!compare ? (
+          <button type="button" className="btn" onClick={() => toggleCompare(true)}>
+            Add comparison scenario
+          </button>
+        ) : (
+          <>
+            {stateB && (
+              <ScenarioPanel
+                title="Scenario B"
+                state={stateB}
+                isChatQueue={isChat}
+                onChange={(patch) => setStateB((s) => (s ? { ...s, ...patch } : s))}
+              />
+            )}
+            <button type="button" className="btn" onClick={() => toggleCompare(false)}>
+              Remove scenario B
+            </button>
+          </>
         )}
       </div>
 
@@ -312,7 +324,13 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               <div className="metric-value">{fmtNum(summaryA.peakScheduled, 1)}</div>
               <div className="metric-sub">scheduled heads in the busiest interval, after shrinkage</div>
               {summaryB && (
-                <div className="metric-delta">
+                <div
+                  className={`metric-delta ${deltaClass(
+                    summaryB.peakScheduled - summaryA.peakScheduled,
+                    true,
+                    0.05,
+                  )}`}
+                >
                   B minus A: {fmtSigned(summaryB.peakScheduled - summaryA.peakScheduled, 1)}
                 </div>
               )}
@@ -323,7 +341,13 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               </div>
               <div className="metric-value">{fmtInt(summaryA.totalScheduledFte)}</div>
               {summaryB && (
-                <div className="metric-delta">
+                <div
+                  className={`metric-delta ${deltaClass(
+                    summaryB.totalScheduledFte - summaryA.totalScheduledFte,
+                    true,
+                    0.5,
+                  )}`}
+                >
                   B minus A: {fmtSigned(summaryB.totalScheduledFte - summaryA.totalScheduledFte, 0)}
                 </div>
               )}
@@ -335,7 +359,9 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
               <div className="metric-value">{fmtPct(summaryA.weightedOcc)}</div>
               <div className="metric-sub">volume-weighted across intervals</div>
               {summaryB && (
-                <div className="metric-delta">
+                // Occupancy has no clean better direction (higher is cheaper
+                // but harder on agents), so the delta stays neutral.
+                <div className="metric-delta delta-neutral">
                   B minus A: {fmtSigned((summaryB.weightedOcc - summaryA.weightedOcc) * 100, 1)} pts
                 </div>
               )}
@@ -417,7 +443,13 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
                         <td className="num">{fmtNum(bDailyByDate.get(d.date) ?? 0, 1)}</td>
                       )}
                       {summaryB && (
-                        <td className="num">
+                        <td
+                          className={`num ${deltaClass(
+                            (bDailyByDate.get(d.date) ?? 0) - d.scheduledFte,
+                            true,
+                            0.05,
+                          )}`}
+                        >
                           {fmtSigned((bDailyByDate.get(d.date) ?? 0) - d.scheduledFte, 1)}
                         </td>
                       )}

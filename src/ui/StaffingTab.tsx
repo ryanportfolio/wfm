@@ -9,6 +9,7 @@ import type { ScenarioState } from './controls/ScenarioPanel'
 import { StaffingIntervalChart } from './charts/StaffingIntervalChart'
 import type { StaffingRow } from './charts/StaffingIntervalChart'
 import { fmtDateWeekday, fmtInt, fmtNum, fmtPct, fmtSec, fmtSigned } from './format'
+import { errorMessage } from './errors'
 
 interface StaffingTabProps {
   forecast: ForecastResult
@@ -137,26 +138,36 @@ function useGrid(
   state: ScenarioState | null,
   isChat: boolean,
   baseConfig: StaffingConfig,
-): { grid: StaffingGridResult | null; computing: boolean } {
+): { grid: StaffingGridResult | null; computing: boolean; error: string | null; retry: () => void } {
   const debounced = useDebounced(state, 150)
   const [grid, setGrid] = useState<StaffingGridResult | null>(null)
   const [computing, setComputing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     if (!debounced) {
       setGrid(null)
+      setError(null)
       return
     }
     setComputing(true)
     // Yield so slider interaction stays responsive while Erlang math runs.
     const id = setTimeout(() => {
-      setGrid(applyScenario(intervalForecast, toEngineScenario(debounced, isChat), baseConfig))
-      setComputing(false)
+      try {
+        setGrid(applyScenario(intervalForecast, toEngineScenario(debounced, isChat), baseConfig))
+        setError(null)
+      } catch (err) {
+        setGrid(null)
+        setError(errorMessage(err))
+      } finally {
+        setComputing(false)
+      }
     }, 0)
     return () => clearTimeout(id)
-  }, [debounced, intervalForecast, isChat, baseConfig])
+  }, [debounced, intervalForecast, isChat, baseConfig, attempt])
 
-  return { grid, computing }
+  return { grid, computing, error, retry: () => setAttempt((a) => a + 1) }
 }
 
 export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProps) {
@@ -181,13 +192,18 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
   const [stateB, setStateB] = useState<ScenarioState | null>(null)
   const [selectedDay, setSelectedDay] = useState('')
 
-  const { grid: gridA, computing: computingA } = useGrid(intervalForecast, stateA, isChat, baseConfig)
-  const { grid: gridB, computing: computingB } = useGrid(
-    intervalForecast,
-    compare ? stateB : null,
-    isChat,
-    baseConfig,
-  )
+  const {
+    grid: gridA,
+    computing: computingA,
+    error: errorA,
+    retry: retryA,
+  } = useGrid(intervalForecast, stateA, isChat, baseConfig)
+  const {
+    grid: gridB,
+    computing: computingB,
+    error: errorB,
+    retry: retryB,
+  } = useGrid(intervalForecast, compare ? stateB : null, isChat, baseConfig)
 
   const summaryA = useMemo(
     () => (gridA ? summarize(gridA, intervalForecast, stateA.volumeDeltaPct) : null),
@@ -263,6 +279,31 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           )}
         </div>
 
+        {(errorA || errorB) && (
+          <div className="card">
+            <div className="card-title">
+              <h2 className="error-text">Staffing computation failed</h2>
+            </div>
+            {errorA && <p className="note">Scenario A: {errorA}</p>}
+            {errorB && <p className="note">Scenario B: {errorB}</p>}
+            <p className="note">
+              Adjust the scenario settings or retry with the same values.
+            </p>
+            <div className="row">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  if (errorA) retryA()
+                  if (errorB) retryB()
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {summaryA && (
           <div className="cards-row">
             <div className="card">
@@ -315,7 +356,9 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
           {chartRows.length > 0 ? (
             <StaffingIntervalChart rows={chartRows} theme={theme} />
           ) : (
-            <div className="note">Computing staffing grid...</div>
+            <div className="note">
+              {errorA ? 'No staffing grid to show; see the error above.' : 'Computing staffing grid...'}
+            </div>
           )}
         </div>
 

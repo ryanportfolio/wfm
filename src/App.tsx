@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import type { IntervalRecord } from './engine/types'
 import type { CsvError } from './engine/csv'
 import { parseCsv } from './engine/csv'
+import { errorMessage } from './ui/errors'
 import { generateSampleData } from './engine/sampleData'
 import { runForecast } from './engine/forecastPipeline'
 import type { ForecastResult } from './engine/forecastPipeline'
@@ -21,6 +22,7 @@ export default function App() {
   const [records, setRecords] = useState<IntervalRecord[] | null>(null)
   const [csvErrors, setCsvErrors] = useState<CsvError[]>([])
   const [sourceLabel, setSourceLabel] = useState('')
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState(false)
   const [queueChoice, setQueueChoice] = useState('')
   const [horizon, setHorizon] = useState<Horizon>(14)
@@ -49,11 +51,19 @@ export default function App() {
   }, [records, queue, horizon])
 
   const setData = (recs: IntervalRecord[], errors: CsvError[], label: string) => {
-    forecastCache.current.clear()
     setCsvErrors(errors)
     if (recs.length > 0) {
+      forecastCache.current.clear()
       setRecords(recs)
       setSourceLabel(label)
+      setLoadError(null)
+    } else {
+      // Nothing usable came in: keep the current dataset and say so explicitly.
+      setLoadError(
+        records
+          ? `Load of "${label}" failed: no valid rows. Still showing: ${sourceLabel}.`
+          : `Load of "${label}" failed: no valid rows. No dataset is loaded.`,
+      )
     }
   }
 
@@ -61,8 +71,13 @@ export default function App() {
     setLoadingSample(true)
     // Yield a frame so the loading state paints before generation blocks.
     setTimeout(() => {
-      setData(generateSampleData(), [], 'Sample dataset (generated)')
-      setLoadingSample(false)
+      try {
+        setData(generateSampleData(), [], 'Sample dataset (generated)')
+      } catch (err) {
+        setLoadError(`Sample data failed: ${errorMessage(err)}. Use the button to try again.`)
+      } finally {
+        setLoadingSample(false)
+      }
     }, 30)
   }
 
@@ -74,7 +89,7 @@ export default function App() {
         setData(recs, errors, file.name)
       })
       .catch(() => {
-        setCsvErrors([{ row: 1, message: 'could not read the file' }])
+        setData([], [{ row: 1, message: 'could not read the file' }], file.name)
       })
   }
 
@@ -107,6 +122,7 @@ export default function App() {
             csvErrors={csvErrors}
             loadingSample={loadingSample}
             sourceLabel={sourceLabel}
+            loadError={loadError}
             queues={queues}
             queue={queue}
             forecast={forecast}

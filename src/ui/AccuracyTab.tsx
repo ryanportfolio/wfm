@@ -7,6 +7,7 @@ import { METHOD_SHORT, UI_METHODS } from './theme'
 import { WapeBarChart } from './charts/WapeBarChart'
 import type { WapeBarRow } from './charts/WapeBarChart'
 import { fmtPct, fmtSignedPct } from './format'
+import { errorMessage } from './errors'
 
 type Grain = 'interval' | 'daily' | 'weekly'
 const GRAINS: Grain[] = ['interval', 'daily', 'weekly']
@@ -21,21 +22,29 @@ interface AccuracyTabProps {
 export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
   const [results, setResults] = useState<Record<string, BacktestReport[]>>({})
   const [running, setRunning] = useState(false)
+  const [runError, setRunError] = useState<string | null>(null)
 
   // New dataset invalidates every cached backtest.
   useEffect(() => {
     setResults({})
+    setRunError(null)
   }, [records])
 
   const reports = results[queue]
 
   const run = () => {
     setRunning(true)
+    setRunError(null)
     // Yield a frame so the spinner paints before the backtest blocks the thread.
     setTimeout(() => {
-      const out = runBacktest(records, queue, { folds: 8, horizonDays: 28 })
-      setResults((prev) => ({ ...prev, [queue]: out }))
-      setRunning(false)
+      try {
+        const out = runBacktest(records, queue, { folds: 8, horizonDays: 28 })
+        setResults((prev) => ({ ...prev, [queue]: out }))
+      } catch (err) {
+        setRunError(errorMessage(err))
+      } finally {
+        setRunning(false)
+      }
     }, 30)
   }
 
@@ -111,7 +120,13 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
           </button>
         </div>
 
-        {!reports && !running && (
+        {runError && (
+          <div className="note error-text">
+            Backtest failed: {runError}. Use the button above to try again.
+          </div>
+        )}
+
+        {!reports && !running && !runError && (
           <div className="note">
             Run the backtest to score every method out of sample. Each fold trains on history up
             to its origin and forecasts the next 28 days; errors are pooled across folds.

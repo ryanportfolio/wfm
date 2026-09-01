@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import type { IntervalRecord } from '../engine/types'
 import type { CsvError } from '../engine/csv'
-import { CSV_HEADER } from '../engine/csv'
+import { CSV_HEADER, csvTemplate } from '../engine/csv'
 import type { ForecastResult } from '../engine/forecastPipeline'
 import { toDailySeries } from '../engine/series'
 import type { ChartTheme } from './theme'
@@ -13,6 +13,7 @@ interface DataTabProps {
   csvErrors: CsvError[]
   loadingSample: boolean
   sourceLabel: string
+  loadError: string | null
   queues: string[]
   queue: string
   forecast: ForecastResult | null
@@ -33,6 +34,7 @@ export function DataTab({
   csvErrors,
   loadingSample,
   sourceLabel,
+  loadError,
   queues,
   queue,
   forecast,
@@ -41,6 +43,19 @@ export function DataTab({
   onCsvFile,
 }: DataTabProps) {
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const downloadTemplate = () => {
+    const blob = new Blob([csvTemplate()], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'wfm-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Header plus the first three example rows, shown as a copyable snippet.
+  const exampleSnippet = csvTemplate().split('\n').slice(0, 4).join('\n')
 
   const daily = useMemo(
     () => (records && queue ? toDailySeries(records, queue).points : []),
@@ -110,6 +125,9 @@ export function DataTab({
           <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
             Upload CSV
           </button>
+          <button type="button" className="btn" onClick={downloadTemplate}>
+            Download CSV template
+          </button>
           <input
             ref={fileRef}
             type="file"
@@ -123,11 +141,31 @@ export function DataTab({
           />
           {sourceLabel ? <span className="note">Loaded: {sourceLabel}</span> : null}
         </div>
-        <p className="note" style={{ marginBottom: 0 }}>
+        {loadError && (
+          <p className="note error-text" style={{ marginBottom: 0 }}>
+            {loadError}
+          </p>
+        )}
+        <p className="note">
           The sample dataset is a generated 2-year, 3-queue public-sector contact center:
           Monday peaks, post-holiday spikes, month-start benefit bumps, twin intraday peaks,
           and a few injected outage outliers for the cleaning step to catch.
         </p>
+        <p className="note" style={{ marginBottom: 4 }}>
+          Your CSV needs one row per 30-minute interval, like this (copy it as a starting point):
+        </p>
+        <pre
+          className="note"
+          style={{
+            margin: 0,
+            padding: '8px 10px',
+            fontFamily: 'ui-monospace, Consolas, monospace',
+            overflowX: 'auto',
+            userSelect: 'all',
+          }}
+        >
+          {exampleSnippet}
+        </pre>
       </div>
 
       {csvErrors.length > 0 && (
@@ -154,6 +192,11 @@ export function DataTab({
               </tbody>
             </table>
           </div>
+          {csvErrors.length > 500 && (
+            <p className="note" style={{ marginBottom: 0 }}>
+              Showing first 500 of {fmtInt(csvErrors.length)} errors.
+            </p>
+          )}
         </div>
       )}
 

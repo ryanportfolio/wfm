@@ -10,7 +10,7 @@ A contact center workforce management tool: forecast interval-level contact volu
 
 Built by Ryan Allen (WFM senior team lead; Verint tenant admin). Runs fully in the browser: no backend, no data leaves the machine.
 
-![Forecast tab](docs/screenshots/forecast-dark.png)
+![Forecast tab, light theme](docs/screenshots/forecast-light.png)
 
 ## Run it
 
@@ -49,7 +49,7 @@ Daily forecasts are spread to 30-minute intervals with recency-weighted day-of-w
 
 **Working with results.** Forecast, scorecard, and staffing tables download as CSV. Scenario settings encode into the URL hash, so a what-if is shareable as a link. Forecasts, backtests, and staffing solves run in a Web Worker to keep the sliders responsive, and a header toggle switches between light, dark, and system theme.
 
-![Staffing tab](docs/screenshots/staffing-dark.png)
+![Staffing tab, dark theme](docs/screenshots/staffing-dark.png)
 
 ## Why these methods
 

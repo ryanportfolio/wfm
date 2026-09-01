@@ -3,8 +3,8 @@
   Source for public/og.png (the Open Graph / Twitter card image).
   Regenerate: open this file in a browser at exactly 1200x630 and screenshot
   the page (e.g. Playwright with a 1200x630 viewport), then save the capture
-  as public/og.png. Colors are the app's dark palette plus the Okabe-Ito
-  chart colors from src/ui/theme.ts.
+  as public/og.png. Colors are the app's light palette (src/index.css) plus
+  the Okabe-Ito chart colors from src/ui/theme.ts.
 -->
 <html lang="en">
   <head>
@@ -16,6 +16,13 @@
         font-style: normal;
         font-weight: 100 900;
         src: url('../public/fonts/InterVariable.woff2') format('woff2');
+      }
+
+      @font-face {
+        font-family: 'DM Serif Display';
+        font-style: normal;
+        font-weight: 400;
+        src: url('../public/fonts/DMSerifDisplay-Regular.woff2') format('woff2');
       }
 
       * {
@@ -31,8 +38,8 @@
       }
 
       body {
-        background: #12151a;
-        color: #e7ebf2;
+        background: #f8f3eb;
+        color: #080331;
         font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
         position: relative;
       }
@@ -40,53 +47,56 @@
       .card {
         position: absolute;
         inset: 0;
-        padding: 72px 80px 0;
-        background: linear-gradient(160deg, #161b22 0%, #12151a 55%, #101318 100%);
+        padding: 56px 80px 0;
       }
 
       .kicker {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 12px;
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #9aa4b2;
+        color: #3347e0;
+        background: rgba(72, 101, 255, 0.12);
+        border-radius: 999px;
+        padding: 10px 22px;
       }
 
       .kicker .mark {
         display: inline-flex;
         gap: 4px;
         align-items: flex-end;
-        height: 26px;
+        height: 22px;
       }
 
       .kicker .mark i {
         display: block;
-        width: 7px;
+        width: 6px;
         border-radius: 2px;
       }
 
       h1 {
-        margin-top: 26px;
-        font-size: 64px;
-        line-height: 1.08;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        max-width: 900px;
+        margin-top: 24px;
+        font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+        font-size: 72px;
+        line-height: 1.06;
+        font-weight: 400;
+        letter-spacing: 0;
+        max-width: 980px;
       }
 
       .tagline {
-        margin-top: 22px;
-        font-size: 28px;
+        margin-top: 18px;
+        font-size: 26px;
         line-height: 1.35;
-        color: #b8c0cc;
-        max-width: 820px;
+        color: #5b5468;
+        max-width: 840px;
       }
 
       .methods {
-        margin-top: 26px;
+        margin-top: 24px;
         display: flex;
         gap: 12px;
       }
@@ -94,19 +104,29 @@
       .methods span {
         font-size: 17px;
         font-weight: 600;
-        color: #c7cdd8;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid #2c3440;
+        color: #080331;
+        background: #ffffff;
+        border: 1px solid #e7dfd0;
         border-radius: 999px;
-        padding: 7px 16px;
+        padding: 8px 18px;
         white-space: nowrap;
+        box-shadow: 0 4px 4px rgba(75, 68, 57, 0.05), 0 12px 16px rgba(75, 68, 57, 0.08);
       }
 
-      .chart {
+      .chart-card {
         position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        left: 64px;
+        right: 64px;
+        bottom: -24px;
+        height: 176px;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 8px 16px rgba(99, 91, 79, 0.08), 0 32px 32px rgba(99, 91, 79, 0.08);
+        overflow: hidden;
+      }
+
+      .chart-card svg {
+        display: block;
       }
     </style>
   </head>
@@ -114,9 +134,9 @@
     <div class="card">
       <div class="kicker">
         <span class="mark" aria-hidden="true">
-          <i style="height: 14px; background: #0072b2"></i>
-          <i style="height: 26px; background: #d55e00"></i>
-          <i style="height: 20px; background: #009e73"></i>
+          <i style="height: 12px; background: #0072b2"></i>
+          <i style="height: 22px; background: #d55e00"></i>
+          <i style="height: 17px; background: #009e73"></i>
         </span>
         Runs entirely in the browser
       </div>
@@ -134,38 +154,46 @@
     </div>
 
     <!-- Chart motif: history bars, then a forecast line inside a shaded band. -->
-    <svg class="chart" width="1200" height="190" viewBox="0 0 1200 190" aria-hidden="true">
-      <!-- History bars (Okabe-Ito blue) -->
-      <g fill="#0072b2" opacity="0.85">
-        <rect x="40" y="120" width="34" height="70" rx="3" />
-        <rect x="86" y="96" width="34" height="94" rx="3" />
-        <rect x="132" y="108" width="34" height="82" rx="3" />
-        <rect x="178" y="72" width="34" height="118" rx="3" />
-        <rect x="224" y="88" width="34" height="102" rx="3" />
-        <rect x="270" y="60" width="34" height="130" rx="3" />
-        <rect x="316" y="84" width="34" height="106" rx="3" />
-        <rect x="362" y="52" width="34" height="138" rx="3" />
-        <rect x="408" y="78" width="34" height="112" rx="3" />
-        <rect x="454" y="64" width="34" height="126" rx="3" />
-        <rect x="500" y="92" width="34" height="98" rx="3" />
-        <rect x="546" y="58" width="34" height="132" rx="3" />
-      </g>
-      <!-- Forecast start divider -->
-      <line x1="605" y1="16" x2="605" y2="190" stroke="#2c3440" stroke-width="2" stroke-dasharray="6 6" />
-      <!-- Shaded 80% band (Okabe-Ito orange, translucent) -->
-      <path
-        d="M 605 96 C 680 74, 760 118, 840 92 C 920 66, 1000 108, 1080 78 C 1120 64, 1160 70, 1195 60 L 1195 158 C 1160 150, 1120 160, 1080 152 C 1000 176, 920 140, 840 164 C 760 186, 680 146, 605 160 Z"
-        fill="#e69f00"
-        opacity="0.18"
-      />
-      <!-- Forecast line -->
-      <path
-        d="M 605 128 C 680 108, 760 152, 840 128 C 920 104, 1000 142, 1080 115 C 1120 102, 1160 112, 1195 104"
-        fill="none"
-        stroke="#e69f00"
-        stroke-width="5"
-        stroke-linecap="round"
-      />
-    </svg>
+    <div class="chart-card">
+      <svg width="1072" height="176" viewBox="0 14 1072 176" aria-hidden="true">
+        <!-- Warm gridlines -->
+        <g stroke="#eae3d5" stroke-width="1">
+          <line x1="0" y1="52" x2="1072" y2="52" />
+          <line x1="0" y1="104" x2="1072" y2="104" />
+          <line x1="0" y1="156" x2="1072" y2="156" />
+        </g>
+        <!-- History bars (Okabe-Ito blue) -->
+        <g fill="#0072b2" opacity="0.85">
+          <rect x="36" y="130" width="30" height="74" rx="3" />
+          <rect x="77" y="106" width="30" height="98" rx="3" />
+          <rect x="118" y="118" width="30" height="86" rx="3" />
+          <rect x="159" y="82" width="30" height="122" rx="3" />
+          <rect x="200" y="98" width="30" height="106" rx="3" />
+          <rect x="241" y="70" width="30" height="134" rx="3" />
+          <rect x="282" y="94" width="30" height="110" rx="3" />
+          <rect x="323" y="62" width="30" height="142" rx="3" />
+          <rect x="364" y="88" width="30" height="116" rx="3" />
+          <rect x="405" y="74" width="30" height="130" rx="3" />
+          <rect x="446" y="102" width="30" height="102" rx="3" />
+          <rect x="487" y="68" width="30" height="136" rx="3" />
+        </g>
+        <!-- Forecast start divider (indigo accent) -->
+        <line x1="546" y1="18" x2="546" y2="204" stroke="#4865ff" stroke-width="2" stroke-dasharray="6 6" opacity="0.55" />
+        <!-- Shaded 80% band (Okabe-Ito orange, translucent) -->
+        <path
+          d="M 546 104 C 614 82, 686 126, 758 100 C 830 74, 902 116, 974 86 C 1010 72, 1042 78, 1072 68 L 1072 166 C 1042 158, 1010 168, 974 160 C 902 184, 830 148, 758 172 C 686 194, 614 154, 546 168 Z"
+          fill="#e69f00"
+          opacity="0.18"
+        />
+        <!-- Forecast line -->
+        <path
+          d="M 546 136 C 614 116, 686 160, 758 136 C 830 112, 902 150, 974 123 C 1010 110, 1042 120, 1072 112"
+          fill="none"
+          stroke="#e69f00"
+          stroke-width="5"
+          stroke-linecap="round"
+        />
+      </svg>
+    </div>
   </body>
 </html>

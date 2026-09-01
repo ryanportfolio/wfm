@@ -76,8 +76,11 @@ const STEPS: TourStep[] = [
   {
     id: 'staffing-results',
     tab: 'staffing',
+    // Fallback is the panel itself: while the forecast worker is still
+    // computing, StaffingTab is replaced by the computing card, so nothing
+    // inside it exists to fall back to.
     selector: '[data-tour="staffing-results"]',
-    fallbackSelector: '[data-tour="staffing-chart"]',
+    fallbackSelector: '#panel-staffing',
     title: 'What it costs',
     body: 'Peak agents, scheduled hours, and occupancy update with every change you make. The "Copy link to this scenario" button shares the exact setup you see.',
   },

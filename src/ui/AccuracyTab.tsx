@@ -205,7 +205,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
 
         {runError && (
           <div className="note error-text">
-            Backtest failed: {runError}. Use the button above to try again.
+            The accuracy test failed: {runError}. Use the button above to try again.
           </div>
         )}
 

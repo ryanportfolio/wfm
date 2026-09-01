@@ -8,7 +8,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { ChartTheme } from '../theme'
-import { EXTRA_COLORS, METHOD_COLORS, METHOD_SHORT, tooltipStyle } from '../theme'
+import { CHART_FONT_SIZE, EXTRA_COLORS, METHOD_COLORS, METHOD_SHORT, tooltipStyle } from '../theme'
 import { fmtPct } from '../format'
 
 /** Daily WAPE per method at one lead day; missing = no pooled volume that day. */
@@ -33,14 +33,14 @@ export function LeadTimeChart({ rows, theme }: LeadTimeChartProps) {
         <CartesianGrid stroke={theme.grid} vertical={false} />
         <XAxis
           dataKey="lead"
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           minTickGap={16}
-          label={{ value: 'Lead day', fill: theme.axis, fontSize: 12, position: 'insideBottom', dy: 14 }}
+          label={{ value: 'Lead day', fill: theme.axis, fontSize: CHART_FONT_SIZE, position: 'insideBottom', dy: 14 }}
         />
         <YAxis
           tickFormatter={(v) => fmtPct(Number(v), 0)}
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           width={48}
         />

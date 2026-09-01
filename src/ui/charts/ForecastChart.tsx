@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { ChartTheme, UiMethod } from '../theme'
-import { METHOD_COLORS, METHOD_SHORT, tooltipStyle } from '../theme'
+import { CHART_FONT_SIZE, METHOD_COLORS, METHOD_SHORT, tooltipStyle } from '../theme'
 import { fmtCompact, fmtDateLong, fmtDateShort, fmtInt } from '../format'
 
 export interface ForecastChartRow {
@@ -39,13 +39,13 @@ export function ForecastChart({ rows, lastActualDate, visible, theme }: Forecast
         <XAxis
           dataKey="date"
           tickFormatter={fmtDateShort}
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           minTickGap={40}
         />
         <YAxis
           tickFormatter={fmtCompact}
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           width={48}
         />
@@ -63,7 +63,7 @@ export function ForecastChart({ rows, lastActualDate, visible, theme }: Forecast
           x={lastActualDate}
           stroke={theme.axis}
           strokeDasharray="4 4"
-          label={{ value: 'Forecast start', fill: theme.axis, fontSize: 12, position: 'insideTopRight' }}
+          label={{ value: 'Forecast start', fill: theme.axis, fontSize: CHART_FONT_SIZE, position: 'insideTopRight' }}
         />
         {visible.ensemble && (
           <Area

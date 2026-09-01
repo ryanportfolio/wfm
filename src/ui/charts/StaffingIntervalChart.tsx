@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { ChartTheme } from '../theme'
-import { EXTRA_COLORS, METHOD_COLORS, tooltipStyle } from '../theme'
+import { CHART_FONT_SIZE, EXTRA_COLORS, METHOD_COLORS, tooltipStyle } from '../theme'
 import { fmtNum } from '../format'
 
 export interface StaffingRow {
@@ -73,12 +73,12 @@ export function StaffingIntervalChart({ rows, theme, fixedMode = false }: Staffi
         <CartesianGrid stroke={theme.grid} vertical={false} />
         <XAxis
           dataKey="time"
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           minTickGap={30}
         />
         <YAxis
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           width={44}
           label={{
@@ -86,7 +86,7 @@ export function StaffingIntervalChart({ rows, theme, fixedMode = false }: Staffi
             angle: -90,
             position: 'insideLeft',
             fill: theme.axis,
-            fontSize: 12,
+            fontSize: CHART_FONT_SIZE,
           }}
         />
         <Tooltip
@@ -95,7 +95,7 @@ export function StaffingIntervalChart({ rows, theme, fixedMode = false }: Staffi
           labelStyle={{ color: theme.text }}
           formatter={(value, name) => [fmtNum(Number(value), 1), String(name)]}
         />
-        <Legend wrapperStyle={{ fontSize: 12, color: theme.text }} content={legendContent} />
+        <Legend wrapperStyle={{ fontSize: CHART_FONT_SIZE, color: theme.text }} content={legendContent} />
         <Bar
           dataKey="scheduled"
           name={barName}

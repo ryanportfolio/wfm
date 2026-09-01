@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 import type { DailyPoint } from '../../engine/types'
 import type { ChartTheme } from '../theme'
-import { EXTRA_COLORS, tooltipStyle } from '../theme'
+import { CHART_FONT_SIZE, EXTRA_COLORS, tooltipStyle } from '../theme'
 import { fmtCompact, fmtDateLong, fmtDateShort, fmtInt } from '../format'
 
 interface DailyHistoryChartProps {
@@ -25,13 +25,13 @@ export function DailyHistoryChart({ points, theme }: DailyHistoryChartProps) {
         <XAxis
           dataKey="date"
           tickFormatter={fmtDateShort}
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           minTickGap={60}
         />
         <YAxis
           tickFormatter={fmtCompact}
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           width={48}
         />

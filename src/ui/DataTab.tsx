@@ -202,7 +202,7 @@ export function DataTab({
           <div className="cards-row">
             <div className="card">
               <div className="metric-label">Date range</div>
-              <div className="metric-value" style={{ fontSize: 16 }}>
+              <div className="metric-value" style={{ fontSize: 18 }}>
                 {fmtDateLong(summary.from)} to {fmtDateLong(summary.to)}
               </div>
               <div className="metric-sub">{fmtInt(daily.length)} days</div>

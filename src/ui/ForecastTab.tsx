@@ -160,7 +160,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
           <p className="note" style={{ marginBottom: 0 }}>
             {forecast.weights.fallbackEqual
               ? 'Equal weights: history is below the minimum needed to fit weights.'
-              : `Weights are proportional to inverse squared WAPE from ${forecast.weights.innerFolds} rolling-origin evaluation folds inside the training window. Short horizons lean on the components that nail next week; longer buckets shift toward the ones that hold trend and yearly shape.`}
+              : `Weights are proportional to inverse WAPE raised to a tuned power, from ${forecast.weights.innerFolds} non-overlapping rolling-origin evaluation folds inside the training window, scored against raw actuals. The power comes from a small grid, so the data decides how much to concentrate on the strongest component versus hedging across all three.`}
           </p>
         </div>
       </div>

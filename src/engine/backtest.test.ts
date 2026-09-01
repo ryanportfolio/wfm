@@ -18,7 +18,7 @@ function score(method: string, grain: 'interval' | 'daily' | 'weekly') {
 
 describe('runBacktest on sample data (voice-benefits, 8 folds)', () => {
   it('runs all folds and scores every method at every grain', () => {
-    expect(reports).toHaveLength(4)
+    expect(reports).toHaveLength(5)
     for (const report of reports) {
       expect(report.queue).toBe('voice-benefits')
       expect(report.folds).toBe(8)
@@ -31,10 +31,14 @@ describe('runBacktest on sample data (voice-benefits, 8 folds)', () => {
     }
   })
 
-  it('ensemble daily WAPE is at most min(component WAPEs) + 1.5pp', () => {
+  it('ensemble daily WAPE is at most min(component WAPEs) + 0.2pp', () => {
     const componentWapes = ['sma', 'hw', 'dhr'].map((m) => score(m, 'daily').wape)
     const ensembleWape = score('ensemble', 'daily').wape
-    expect(ensembleWape).toBeLessThanOrEqual(Math.min(...componentWapes) + 0.015)
+    expect(ensembleWape).toBeLessThanOrEqual(Math.min(...componentWapes) + 0.002)
+  })
+
+  it('fitted ensemble beats the equal-weight benchmark on daily WAPE', () => {
+    expect(score('ensemble', 'daily').wape).toBeLessThan(score('equal', 'daily').wape)
   })
 
   it('keeps daily bias small for the ensemble', () => {

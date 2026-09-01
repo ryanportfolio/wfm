@@ -1,6 +1,7 @@
 import type { BacktestReport, DailyPoint, ForecastPoint, IntervalRecord } from './types'
 import type { CleanReport } from './clean'
-import { cleanQueue } from './clean'
+import { cleanDays } from './clean'
+import { groupQueueDays } from './series'
 import type { EnsembleOpts, EnsembleWeights, ComponentName } from './forecast/ensemble'
 import { forecastEnsemble } from './forecast/ensemble'
 import { buildProfiles, intervalize } from './profiles'
@@ -46,7 +47,8 @@ export function runForecast(
   opts: ForecastOpts = {},
 ): ForecastResult {
   const horizonDays = opts.horizonDays ?? 28
-  const cleaned = cleanQueue(records, queue)
+  const rawDays = groupQueueDays(records, queue)
+  const cleaned = cleanDays(rawDays, queue)
   if (cleaned.daily.length === 0) {
     throw new Error(`runForecast: no records for queue "${queue}"`)
   }
@@ -57,7 +59,10 @@ export function runForecast(
     cleaned.report.holidayClosed,
     futureDates,
   )
-  const { components, blend, weights } = forecastEnsemble(input, opts.ensemble)
+  // Raw daily totals (same dates as cleaned.daily) so the ensemble's inner
+  // evaluation scores against uncleaned actuals like the backtest does.
+  const rawTrainTotals = rawDays.map((d) => d.total)
+  const { components, blend, weights } = forecastEnsemble(input, opts.ensemble, rawTrainTotals)
   const profiles = buildProfiles(cleaned.days, new Set(cleaned.report.closedHolidays))
 
   const intervalForecast = intervalize(

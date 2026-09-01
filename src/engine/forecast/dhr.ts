@@ -23,12 +23,10 @@ export const DHR_LAMBDA = 1.0
 const WEEKLY_K = 3
 const YEARLY_K = 2
 
-// Fourier terms depend only on the absolute day number; memoized globally.
-const fourierCache = new Map<number, number[]>()
-
+// Computed fresh per row: 10 sin/cos per day is noise next to the normal
+// equations, and a module-global memo would be shared mutable state across
+// queues, folds, and tests.
 function fourierFeatures(z: number): number[] {
-  let cached = fourierCache.get(z)
-  if (cached) return cached
   const out: number[] = []
   for (let k = 1; k <= WEEKLY_K; k++) {
     const phase = (2 * Math.PI * k * z) / 7
@@ -38,8 +36,7 @@ function fourierFeatures(z: number): number[] {
     const phase = (2 * Math.PI * k * z) / 365.25
     out.push(Math.sin(phase), Math.cos(phase))
   }
-  fourierCache.set(z, cached = out)
-  return cached
+  return out
 }
 
 export interface DhrCalendar {

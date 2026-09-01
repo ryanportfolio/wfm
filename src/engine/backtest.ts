@@ -23,7 +23,9 @@ export interface BacktestOpts {
   ensemble?: EnsembleOpts
 }
 
-export const METHOD_NAMES = [...COMPONENT_NAMES, 'ensemble'] as const
+// 'equal' is the unfitted 1/3-1/3-1/3 blend, scored as a benchmark so the
+// scorecard shows whether the fitted ensemble weights earn their keep.
+export const METHOD_NAMES = [...COMPONENT_NAMES, 'equal', 'ensemble'] as const
 export type MethodName = (typeof METHOD_NAMES)[number]
 
 const MIN_TRAIN_DAYS = 140
@@ -82,6 +84,7 @@ export function runBacktest(
     sma: { interval: newPooled(), daily: newPooled(), weekly: newPooled() },
     hw: { interval: newPooled(), daily: newPooled(), weekly: newPooled() },
     dhr: { interval: newPooled(), daily: newPooled(), weekly: newPooled() },
+    equal: { interval: newPooled(), daily: newPooled(), weekly: newPooled() },
     ensemble: { interval: newPooled(), daily: newPooled(), weekly: newPooled() },
   }
 
@@ -99,10 +102,16 @@ export function runBacktest(
       cleaned.report.holidayClosed,
       testDays.map((d) => d.date),
     )
-    const { components, blend } = forecastEnsemble(input, opts.ensemble)
+    // Raw (uncleaned) totals for the training window, so the inner weight
+    // fit scores against the same kind of actuals the outer backtest uses.
+    const rawTrainTotals = trainDays.map((d) => d.total)
+    const { components, blend } = forecastEnsemble(input, opts.ensemble, rawTrainTotals)
     const profiles = buildProfiles(cleaned.days, new Set(cleaned.report.closedHolidays))
 
-    const dailyByMethod: Record<MethodName, number[]> = { ...components, ensemble: blend }
+    const equal = components.sma.map(
+      (v, j) => Math.max(0, (v + components.hw[j] + components.dhr[j]) / 3),
+    )
+    const dailyByMethod: Record<MethodName, number[]> = { ...components, equal, ensemble: blend }
 
     // Actual interval offered, keyed by ts, over the test window.
     const actualByTs = new Map<string, number>()

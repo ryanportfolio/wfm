@@ -13,6 +13,15 @@ type Grain = 'interval' | 'daily' | 'weekly'
 const GRAINS: Grain[] = ['interval', 'daily', 'weekly']
 const GRAIN_LABELS: Record<Grain, string> = { interval: 'Interval', daily: 'Daily', weekly: 'Weekly' }
 
+// The scorecard also shows the unfitted 1/3-1/3-1/3 blend as a benchmark row,
+// so the fitted ensemble weights have to visibly beat it.
+type ScoreMethod = UiMethod | 'equal'
+const SCORE_METHODS: ScoreMethod[] = ['sma', 'hw', 'dhr', 'equal', 'ensemble']
+const SCORE_METHOD_LABELS: Record<ScoreMethod, string> = {
+  ...METHOD_SHORT,
+  equal: 'Equal-weight blend',
+}
+
 interface AccuracyTabProps {
   records: IntervalRecord[]
   queue: string
@@ -56,18 +65,18 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
         map.set(`${s.method}|${s.grain}`, s as BacktestScoreDetailed)
       }
     }
-    return (method: UiMethod, grain: Grain) => map.get(`${method}|${grain}`)
+    return (method: ScoreMethod, grain: Grain) => map.get(`${method}|${grain}`)
   }, [reports])
 
   // Best value per column: lowest WAPE, lowest MAPE, bias closest to zero.
   const best = useMemo(() => {
     if (!scoreOf) return null
-    const out = new Map<string, UiMethod>()
+    const out = new Map<string, ScoreMethod>()
     for (const grain of GRAINS) {
-      let bWape: UiMethod = 'sma'
-      let bMape: UiMethod = 'sma'
-      let bBias: UiMethod = 'sma'
-      for (const m of UI_METHODS) {
+      let bWape: ScoreMethod = 'sma'
+      let bMape: ScoreMethod = 'sma'
+      let bBias: ScoreMethod = 'sma'
+      for (const m of SCORE_METHODS) {
         const s = scoreOf(m, grain)
         const cur = { wape: scoreOf(bWape, grain), mape: scoreOf(bMape, grain), bias: scoreOf(bBias, grain) }
         if (!s) continue
@@ -166,9 +175,9 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {UI_METHODS.map((m) => (
+                  {SCORE_METHODS.map((m) => (
                     <tr key={m}>
-                      <td>{METHOD_SHORT[m]}</td>
+                      <td>{SCORE_METHOD_LABELS[m]}</td>
                       {GRAINS.map((g) => {
                         const s = scoreOf(m, g) as BacktestScore
                         return (

@@ -9,7 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { ChartTheme, UiMethod } from '../theme'
-import { METHOD_COLORS, tooltipStyle } from '../theme'
+import { CHART_FONT_SIZE, METHOD_COLORS, tooltipStyle } from '../theme'
 import { fmtPct } from '../format'
 
 export interface WapeBarRow {
@@ -28,10 +28,10 @@ export function WapeBarChart({ rows, theme }: WapeBarChartProps) {
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
         <CartesianGrid stroke={theme.grid} vertical={false} />
-        <XAxis dataKey="label" tick={{ fill: theme.axis, fontSize: 12 }} stroke={theme.grid} />
+        <XAxis dataKey="label" tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }} stroke={theme.grid} />
         <YAxis
           tickFormatter={(v) => fmtPct(Number(v), 0)}
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           width={48}
         />

@@ -9,7 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { ChartTheme } from '../theme'
-import { EXTRA_COLORS, METHOD_COLORS, tooltipStyle } from '../theme'
+import { CHART_FONT_SIZE, EXTRA_COLORS, METHOD_COLORS, tooltipStyle } from '../theme'
 import { fmtNum } from '../format'
 
 export interface IntradayRow {
@@ -30,13 +30,13 @@ export function IntradayForecastChart({ rows, theme }: IntradayForecastChartProp
         <CartesianGrid stroke={theme.grid} vertical={false} />
         <XAxis
           dataKey="time"
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           minTickGap={30}
         />
         <YAxis
           yAxisId="offered"
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           width={44}
           label={{
@@ -44,13 +44,13 @@ export function IntradayForecastChart({ rows, theme }: IntradayForecastChartProp
             angle: -90,
             position: 'insideLeft',
             fill: theme.axis,
-            fontSize: 12,
+            fontSize: CHART_FONT_SIZE,
           }}
         />
         <YAxis
           yAxisId="aht"
           orientation="right"
-          tick={{ fill: theme.axis, fontSize: 12 }}
+          tick={{ fill: theme.axis, fontSize: CHART_FONT_SIZE }}
           stroke={theme.grid}
           width={44}
           label={{
@@ -58,7 +58,7 @@ export function IntradayForecastChart({ rows, theme }: IntradayForecastChartProp
             angle: 90,
             position: 'insideRight',
             fill: theme.axis,
-            fontSize: 12,
+            fontSize: CHART_FONT_SIZE,
           }}
         />
         <Tooltip

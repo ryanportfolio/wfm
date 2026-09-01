@@ -21,7 +21,7 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="tabs"]',
     fallbackSelector: '#panel-data',
     title: 'The four steps',
-    body: 'Each tab is one part of the job: load history, forecast it, check the forecast, then staff to it. Leave any time with Skip tour or the Esc key.',
+    body: 'One tab per step: load history, forecast, check, staff. Skip tour or Esc exits anytime.',
   },
   {
     id: 'load-data',
@@ -29,9 +29,9 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="load-data"]',
     fallbackSelector: '#panel-data',
     title: 'Start with data',
-    body: 'The tour loaded two years of sample contact history. Your own CSV works the same way: one row per 30-minute interval.',
+    body: 'The tour loaded two years of sample contact history. A CSV in the template format works too.',
     altBody:
-      'You already have history loaded, so the tour uses that. Any CSV works: one row per 30-minute interval.',
+      'You already have history loaded; the tour uses it. A CSV in the template format works too.',
   },
   {
     id: 'queue',
@@ -39,15 +39,15 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="queue"]',
     fallbackSelector: '#panel-data',
     title: 'One queue at a time',
-    body: 'Every chart and number in the app follows the queue you pick here. Switch it to see another team.',
+    body: 'Every chart and number follows this queue; switch for another team.',
   },
   {
     id: 'cleaning',
     tab: 'data',
     selector: '[data-tour="cleaning"]',
     fallbackSelector: '#panel-data',
-    title: 'The app cleans odd days first',
-    body: 'Before any model runs, the app swaps outages and one-off spikes for the usual value at that weekday and half hour. It deletes nothing and lists every change here.',
+    title: 'Odd days cleaned',
+    body: 'Outages and one-off spikes take that weekday and half hour\'s usual value. Nothing is deleted; every change is listed here.',
   },
   {
     id: 'forecast-chart',
@@ -55,15 +55,15 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="forecast-chart"]',
     fallbackSelector: '#panel-forecast',
     title: 'The forecast',
-    body: 'The line predicts contacts per day, and the shaded band covers 80% of past errors. Use 7, 14, or 28 days to change how far ahead it looks.',
+    body: 'The line predicts daily contacts; the band covers 80% of past errors. Look 7, 14, or 28 days ahead.',
   },
   {
     id: 'backtest',
     tab: 'accuracy',
     selector: '[data-tour="backtest"]',
     fallbackSelector: '#panel-accuracy',
-    title: 'Check it against history',
-    body: 'This card scores every method on history it never saw, once you run the accuracy test. Lower error wins, and bias says whether a method runs high or low.',
+    title: 'Check against history',
+    body: 'Run the accuracy test to score each method on unseen history. Lower error wins; bias shows whether a method runs high or low.',
   },
   {
     id: 'scenario',
@@ -71,7 +71,7 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="scenario"]',
     fallbackSelector: '#panel-staffing',
     title: 'Your staffing rules',
-    body: 'Set the service target, shrinkage (paid time not spent on contacts), and how long callers wait before hanging up. Erlang A allows for people who hang up while waiting; Erlang C assumes nobody does.',
+    body: 'Set service target, shrinkage (paid time not on contacts), and caller patience (wait before hanging up). Erlang A counts hang-ups; Erlang C assumes none.',
   },
   {
     id: 'staffing-results',
@@ -82,7 +82,7 @@ const STEPS: TourStep[] = [
     selector: '[data-tour="staffing-results"]',
     fallbackSelector: '#panel-staffing',
     title: 'What it costs',
-    body: 'Peak agents, scheduled hours, and occupancy update with every change you make. The "Copy link to this scenario" button shares the exact setup you see.',
+    body: 'Peak agents, scheduled hours, and occupancy update on every change; "Copy link to this scenario" shares that setup.',
   },
 ]
 

@@ -77,7 +77,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
       <div className="card" data-tour="forecast-chart">
         <div className="card-title">
           <h2>Daily forecast: {queue}</h2>
-          <span className="card-subtitle">The last 8 weeks of real volume, then the forecast</span>
+          <span className="card-subtitle">Last 8 weeks actual, then forecast</span>
           <span style={{ flex: 1 }} />
           <div className="row">
             <span className="note">Look ahead</span>
@@ -138,15 +138,13 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
         <p className="note" style={{ marginBottom: 0 }}>
           {forecast.band ? (
             <>
-              The shaded band shows how far off this forecast tends to be. We tested it against
-              past days it had never seen (<Term term="rollingOrigin">rolling-origin</Term> tests):
-              8 times out of 10, the real number landed inside a band this wide. The width comes
-              from those test misses, grouped by how far ahead the day is. One caveat: the same
-              test windows also tuned the blend, so the band can run a little narrow. Untick
-              Ensemble to hide it.
+              Shaded band: where the real number landed 8 times in 10 in{' '}
+              <Term term="rollingOrigin">rolling-origin</Term> tests on unseen days; width is set per
+              days-ahead range. Those tests also tuned the blend, so the band can run slightly narrow.
+              Untick Ensemble to hide it.
             </>
           ) : (
-            'No shaded band: there is not enough history to run the accuracy tests that set its width.'
+            'No band: too little history for the tests that set its width.'
           )}
         </p>
       </div>
@@ -156,7 +154,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
           <div className="card-title">
             <h2>Intraday forecast</h2>
             <span className="card-subtitle">
-              Predicted contacts each half hour, with average handle time (AHT) on the right axis
+              Predicted contacts per half hour; average handle time (AHT) on the right
             </span>
             <span style={{ flex: 1 }} />
             <select
@@ -191,7 +189,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
           <div className="card-title">
             <h2>What the blend learned</h2>
             <span className="card-subtitle">
-              How much each method counts, by how far ahead the forecast reaches
+              Each method's share, by days ahead
             </span>
           </div>
           <div className="table-wrap">
@@ -224,15 +222,14 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
           </div>
           <p className="note" style={{ marginBottom: 0 }}>
             {forecast.weights.fallbackEqual ? (
-              'Equal shares: there is not enough history to test which method deserves more.'
+              'Equal shares: too little history to test which method deserves more.'
             ) : (
               <>
-                The blend trusts whichever methods have been most accurate. It ran{' '}
-                {forecast.weights.innerFolds} practice tests on separate slices of history it kept
-                hidden, scored each method against the raw, uncleaned actuals, and gave bigger
-                shares to the methods that missed least (shares follow inverse{' '}
-                <Term term="wape">WAPE</Term> raised to a power; the data picks the power, deciding
-                how hard to back the front-runner versus spreading the bet across all three).
+                Shares go to the methods that missed least in {forecast.weights.innerFolds}{' '}
+                practice tests on hidden slices of history, scored against uncleaned actuals. Each
+                share is inverse <Term term="wape">WAPE</Term> raised to a power; the data picks
+                that power, which decides whether to back the front-runner hard or spread across
+                all three.
               </>
             )}
           </p>

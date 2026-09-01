@@ -100,7 +100,7 @@ export function DataTab({
         <div className="card-title">
           <h2>Load interval history</h2>
           <span className="card-subtitle">
-            One row per half hour: contacts that arrived and average handle time, per queue. CSV
+            One row per queue per half hour: contacts arrived and average handle time. CSV
             header: {CSV_HEADER}
           </span>
         </div>
@@ -144,12 +144,12 @@ export function DataTab({
           </p>
         )}
         <p className="note">
-          The sample dataset is a generated 2-year, 3-queue public-sector contact center:
-          Monday peaks, post-holiday spikes, month-start benefit bumps, twin intraday peaks,
-          and a few injected outage outliers for the cleaning step to catch.
+          Sample data: a generated 2-year, 3-queue public-sector contact center with Monday peaks,
+          post-holiday spikes, month-start benefit bumps, twin intraday peaks, and injected outages
+          for cleaning.
         </p>
         <p className="note" style={{ marginBottom: 4 }}>
-          Your CSV needs one row per 30-minute interval, like this (copy it as a starting point):
+          CSV template:
         </p>
         <pre
           className="note"
@@ -169,7 +169,7 @@ export function DataTab({
         <div className="card">
           <div className="card-title">
             <h2 className="error-text">CSV row errors ({fmtInt(csvErrors.length)})</h2>
-            <span className="card-subtitle">Rows listed below were skipped.</span>
+            <span className="card-subtitle">These rows were skipped.</span>
           </div>
           <div className="scroll">
             <table className="table">
@@ -202,7 +202,7 @@ export function DataTab({
           <div className="cards-row">
             <div className="card">
               <div className="metric-label">Date range</div>
-              <div className="metric-value" style={{ fontSize: 16 }}>
+              <div className="metric-value" style={{ fontSize: 18 }}>
                 {fmtDateLong(summary.from)} to {fmtDateLong(summary.to)}
               </div>
               <div className="metric-sub">{fmtInt(daily.length)} days</div>
@@ -245,10 +245,8 @@ export function DataTab({
               <div className="card-title">
                 <h2>Cleaning report</h2>
                 <span className="card-subtitle">
-                  Odd spikes and dips get smoothed before forecasting: a value is flagged when it
-                  sits far outside what is normal for that weekday and time of day (a{' '}
-                  <Term term="mad">MAD</Term> test) and is replaced with the typical value for
-                  that slot.
+                  Spikes and dips far off the norm for that weekday and half hour (
+                  <Term term="mad">MAD</Term> test) take that slot's typical value before forecasting.
                 </span>
               </div>
               <div className="row" style={{ marginBottom: 12 }}>
@@ -263,7 +261,7 @@ export function DataTab({
                 </span>
                 <span className="badge">
                   {forecast.cleanReport.holidayClosed
-                    ? 'Queue closes on holidays: future holidays forecast as zero'
+                    ? 'Closed on holidays: future holidays forecast as zero'
                     : 'Queue open on holidays'}
                 </span>
               </div>

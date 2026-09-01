@@ -35,11 +35,15 @@
   --space-5: 40px;
   --space-6: 64px;
 
-  /* Type scale: tile value > card title > body > caption. */
-  --text-sm: 12px;
-  --text-base: 14px;
-  --text-lg: 16px;
-  --text-xl: 22px;
+  /* Type scale: tile value > card title > body > caption. 16px body; no text
+     a person has to read sits below 13px. */
+  --text-xs: 13px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 26px;
+  /* Longest comfortable line for explainer paragraphs. */
+  --measure: 70ch;
 
   --font-serif: 'DM Serif Display', Georgia, 'Times New Roman', serif;
 
@@ -66,6 +70,7 @@
   --good: #256e2f; /* forest family */
   --bad: #b3261e;
   --highlight: rgba(230, 159, 0, 0.18);
+  --row-alt: rgba(244, 238, 226, 0.5); /* zebra rows: surface-2 at half strength */
   --deco-forest: #328a3b;
   --deco-ember: #ff6d39;
   --deco-blossom: #f098d7;
@@ -103,6 +108,7 @@
     --good: #5ec46c;
     --bad: #ff8f76;
     --highlight: rgba(230, 159, 0, 0.24);
+    --row-alt: rgba(34, 26, 82, 0.5);
     --tour-scrim: rgba(4, 2, 16, 0.66);
     --shadow-sm: none;
     --shadow-md: none;
@@ -129,6 +135,7 @@
   --good: #5ec46c;
   --bad: #ff8f76;
   --highlight: rgba(230, 159, 0, 0.24);
+  --row-alt: rgba(34, 26, 82, 0.5);
   --tour-scrim: rgba(4, 2, 16, 0.66);
   --shadow-sm: none;
   --shadow-md: none;
@@ -153,7 +160,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 14px;
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 
@@ -177,7 +184,7 @@ h2 {
 }
 
 .card-title h2 {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 h3 {
@@ -195,27 +202,27 @@ a {
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-3);
-  height: 64px;
+  column-gap: 10px;
+  row-gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  min-height: 64px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
+/* Scales with the viewport so the header holds one row from 1280px up. */
 .app-title {
-  font-size: 24px;
+  font-size: clamp(20px, 1.75vw + 1px, 24px);
   white-space: nowrap;
 }
 
-/* Narrow screens: let the header controls wrap instead of overflowing. */
+/* Below 1100px the header padding tightens; the controls wrap at any width
+   rather than squeeze, so the theme toggle is never clipped. */
 @media (max-width: 1100px) {
   .app-header {
-    flex-wrap: wrap;
-    height: auto;
     padding: var(--space-1) var(--space-2);
-    row-gap: var(--space-1);
-    column-gap: var(--space-2);
   }
 }
 
@@ -227,7 +234,7 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -237,13 +244,13 @@ a {
 .tabs {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
 }
 
 .tab-btn {
   border: none;
   background: none;
-  padding: 7px 16px;
+  padding: 7px 13px;
   border-radius: var(--radius-pill);
   font: inherit;
   font-weight: 500;
@@ -279,7 +286,7 @@ a {
    * then locks Recharts ResponsiveContainer at the stale width.
    */
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .row {
@@ -373,6 +380,7 @@ a {
 
 .btn {
   padding: 7px 18px;
+  min-height: 40px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--btn-border);
   background: var(--surface);
@@ -409,7 +417,8 @@ input[type="file"] {
 }
 
 select {
-  padding: 6px 10px;
+  padding: 7px 12px;
+  min-height: 40px;
   border-radius: var(--radius-input);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -443,8 +452,8 @@ select {
 
 /* Compact segmented control for the header theme toggle. */
 .seg-sm button {
-  padding: 4px 12px;
-  font-size: var(--text-sm);
+  padding: 4px 9px;
+  font-size: var(--text-xs);
 }
 
 /* Sliders */
@@ -462,7 +471,7 @@ select {
   justify-content: space-between;
   flex-wrap: wrap;
   column-gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin-bottom: 2px;
 }
 
@@ -472,7 +481,8 @@ select {
 }
 
 .slider-hint {
-  font-size: 12px;
+  font-size: var(--text-sm);
+  line-height: 1.45;
   color: var(--text-muted);
 }
 
@@ -488,8 +498,9 @@ input[type="range"] {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
-  padding: 6px 10px;
-  width: 130px;
+  padding: 7px 12px;
+  min-height: 40px;
+  width: 140px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -497,7 +508,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin-bottom: 10px;
 }
 
@@ -510,21 +521,21 @@ input[type="checkbox"] {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .table th {
   text-align: left;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-muted);
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .table td {
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -533,13 +544,24 @@ input[type="checkbox"] {
   border-bottom: none;
 }
 
+/* Zebra rows plus a hover wash keep the eye on one row across wide tables. */
+.table tbody tr:nth-child(even) td {
+  background: var(--row-alt);
+}
+
+.table tbody tr:hover td {
+  background: var(--accent-soft);
+}
+
 .table .num,
 .table th.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-.table td.best {
+/* Same specificity as the zebra and hover rules, declared after both, so the
+   best-value highlight always shows. */
+.table tbody tr td.best {
   background: var(--highlight);
   font-weight: 600;
 }
@@ -569,7 +591,7 @@ input[type="checkbox"] {
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin-bottom: 8px;
 }
 
@@ -652,22 +674,22 @@ input[type="checkbox"] {
   text-decoration-color: var(--accent-ink);
 }
 
+/* Portaled onto body and fixed, so it never grows a scroll container. Sits
+   above the sticky header (10) and the nudge (40), under the tour (200). */
 .term-pop {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 6px);
-  z-index: 30;
-  width: 260px;
+  position: fixed;
+  z-index: 150;
+  width: 300px;
   max-width: calc(100vw - 24px);
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
   border-left: 3px solid var(--deco-blossom);
   border-radius: var(--radius-input);
-  padding: 8px 12px;
-  font-size: 12.5px;
+  padding: 10px 12px;
+  font-size: var(--text-sm);
   font-weight: 400;
-  line-height: 1.45;
+  line-height: 1.5;
   white-space: normal;
   text-align: left;
   box-shadow: var(--shadow-md);
@@ -700,6 +722,8 @@ input[type="checkbox"] {
 }
 
 .btn-tour {
+  padding-left: 14px;
+  padding-right: 14px;
   background: var(--accent-soft);
   border-color: transparent;
   color: var(--accent-ink);
@@ -722,7 +746,7 @@ input[type="checkbox"] {
   top: calc(100% + 8px);
   right: 0;
   z-index: 40;
-  width: 260px;
+  width: 280px;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -738,7 +762,7 @@ input[type="checkbox"] {
 
 .tour-nudge-text {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
@@ -802,7 +826,7 @@ input[type="checkbox"] {
   top: 0;
   left: 0;
   z-index: 202;
-  width: 320px;
+  width: 360px;
   max-width: calc(100vw - 24px);
   pointer-events: auto;
   opacity: 0;
@@ -867,14 +891,14 @@ input[type="checkbox"] {
 .tour-pop-body h2 {
   font-family: var(--font-serif);
   font-weight: 400;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1.2;
   letter-spacing: 0.01em;
 }
 
 .tour-pop-body p {
   margin: 8px 0 0;
-  font-size: 13.5px;
+  font-size: var(--text-base);
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -888,7 +912,7 @@ input[type="checkbox"] {
 }
 
 .tour-count {
-  font-size: 11.5px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -898,7 +922,7 @@ input[type="checkbox"] {
   flex: 1;
 }
 
-/* Tight enough that the count and all three buttons hold one row at 320px. */
+/* Tight enough that the count and all three buttons hold one row at 360px. */
 .tour-foot .btn {
   padding: 6px 11px;
 }
@@ -1044,9 +1068,15 @@ input[type="checkbox"] {
   color: var(--text-muted);
 }
 
+.empty > div {
+  max-width: var(--measure);
+  margin: 0 auto;
+  line-height: 1.55;
+}
+
 .empty h2 {
   color: var(--text);
-  font-size: 22px;
+  font-size: 26px;
   margin-bottom: var(--space-1);
 }
 
@@ -1067,7 +1097,7 @@ input[type="checkbox"] {
   display: inline-block;
   padding: 3px 12px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 500;
   background: var(--info-bg);
   color: var(--info-ink);
@@ -1099,20 +1129,43 @@ input[type="checkbox"] {
 }
 
 .note {
-  font-size: 13px;
+  max-width: var(--measure);
+  font-size: var(--text-sm);
+  line-height: 1.5;
   color: var(--text-muted);
 }
 
 .prose {
-  max-width: 900px;
-  font-size: 13.5px;
+  max-width: var(--measure);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+/* Wide cards: let a long explainer fill the card in two columns. */
+@media (min-width: 1000px) {
+  .prose {
+    max-width: none;
+    columns: 2;
+    column-gap: var(--space-5);
+    orphans: 3;
+    widows: 3;
+  }
+}
+
+/* Section heading outside a card; matches card titles. */
+.section-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
 }
 
 /* Staffing layout */
 
 .staffing-layout {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
+  grid-template-columns: 360px minmax(0, 1fr);
   gap: var(--space-2);
   align-items: start;
 }
@@ -1139,7 +1192,7 @@ input[type="checkbox"] {
   padding: var(--space-4) var(--space-3) var(--space-5);
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 /* Phone widths */

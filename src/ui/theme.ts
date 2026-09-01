@@ -30,6 +30,9 @@ export const METHOD_SHORT: Record<UiMethod, string> = {
 
 export const UI_METHODS: UiMethod[] = ['sma', 'hw', 'dhr', 'ensemble']
 
+/** Axis ticks, axis labels, legends, and tooltips share one size in every chart. */
+export const CHART_FONT_SIZE = 13
+
 /** Non-method chart colors, also Okabe-Ito (equal is a neutral gray). */
 export const EXTRA_COLORS = {
   aht: '#CC79A7',
@@ -134,7 +137,7 @@ export function tooltipStyle(theme: ChartTheme): CSSProperties {
     border: `1px solid ${theme.tooltipBorder}`,
     borderRadius: 8,
     color: theme.text,
-    fontSize: 12,
+    fontSize: CHART_FONT_SIZE,
     boxShadow: 'none',
   }
 }

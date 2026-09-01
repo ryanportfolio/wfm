@@ -101,8 +101,8 @@ export default function App() {
       // Nothing usable came in: keep the current dataset and say so explicitly.
       setLoadError(
         records
-          ? `Load of "${label}" failed: no valid rows. Still showing: ${sourceLabel}.`
-          : `Load of "${label}" failed: no valid rows. No dataset is loaded.`,
+          ? `"${label}" had no valid rows. Still showing ${sourceLabel}.`
+          : `"${label}" had no valid rows. No dataset loaded.`,
       )
     }
   }
@@ -114,7 +114,7 @@ export default function App() {
       try {
         setData(generateSampleData(), [], 'Sample dataset (generated)')
       } catch (err) {
-        setLoadError(`Sample data failed: ${errorMessage(err)}. Use the button to try again.`)
+        setLoadError(`Sample data failed: ${errorMessage(err)}. Press Load sample data again.`)
       } finally {
         setLoadingSample(false)
       }
@@ -230,7 +230,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to forecast yet"
-              text="Load data first. Then this tab shows the predicted contacts per day, a shaded band showing where the real number lands 8 times in 10, each day in half-hour detail (volume and handle time), and how the blend mixes its three methods."
+              text="Load data to get predicted contacts per day, a band the real number lands in 8 times in 10, half-hour volume and handle time, and the blend's three-method mix."
               onGoData={() => setTab('data')}
             />
           )}
@@ -247,7 +247,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to backtest yet"
-              text="Load data first. Then this tab checks the forecast against reality: each method re-forecasts past weeks it was never shown and gets scored (WAPE, MAPE, bias) per interval, per day, and per week, plus a view of how accuracy fades the further ahead it predicts."
+              text="Each method re-forecasts unseen weeks, scored (WAPE, MAPE, bias) per interval, day, and week, plus how accuracy fades further ahead."
               onGoData={() => setTab('data')}
             />
           )}
@@ -266,7 +266,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to staff against yet"
-              text="Load data first. Then this tab turns the forecast into how many people you need each half hour, with sliders to test what-ifs: answer-speed target, time lost to breaks and meetings, caller patience, chats per agent."
+              text="Load data to see people needed per half hour, plus what-if sliders: answer-speed target, time lost to breaks and meetings, caller patience, chats per agent."
               onGoData={() => setTab('data')}
             />
           )}

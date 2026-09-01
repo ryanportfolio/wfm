@@ -161,6 +161,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
             <h2>What the ensemble learned</h2>
             <span className="card-subtitle">Blend weight per component, fitted per horizon bucket</span>
           </div>
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -187,6 +188,7 @@ export function ForecastTab({ records, queue, forecast, horizon, theme, onHorizo
               ))}
             </tbody>
           </table>
+          </div>
           <p className="note" style={{ marginBottom: 0 }}>
             {forecast.weights.fallbackEqual ? (
               'Equal weights: history is below the minimum needed to fit weights.'

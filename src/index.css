@@ -204,6 +204,13 @@ a {
 
 .stack {
   display: grid;
+  /*
+   * minmax(0, 1fr), not the implicit auto track: an auto track's min sizing
+   * function lets any child with a wide min-content (a nowrap table, a chart
+   * holding a fixed pixel width) blow the column past its container, which
+   * then locks Recharts ResponsiveContainer at the stale width.
+   */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -385,6 +392,8 @@ select {
 .slider-head {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
+  column-gap: 8px;
   font-size: 13px;
   margin-bottom: 2px;
 }
@@ -461,6 +470,11 @@ input[type="checkbox"] {
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+/* Horizontal-only scroll wrapper for tables outside a .scroll box. */
+.table-wrap {
+  overflow-x: auto;
 }
 
 .scroll .table th {
@@ -561,6 +575,7 @@ input[type="checkbox"] {
   top: calc(100% + 6px);
   z-index: 30;
   width: 260px;
+  max-width: calc(100vw - 24px);
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -624,7 +639,7 @@ input[type="checkbox"] {
 
 @media (max-width: 1000px) {
   .staffing-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -636,7 +651,7 @@ input[type="checkbox"] {
 
 @media (max-width: 950px) {
   .two-col {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -645,4 +660,38 @@ input[type="checkbox"] {
   text-align: center;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+/* Phone widths */
+
+@media (max-width: 620px) {
+  .container {
+    padding: 16px 12px 8px;
+  }
+
+  .card {
+    padding: var(--space-3) var(--space-3);
+  }
+
+  /* The tab strip scrolls sideways inside the header instead of widening it. */
+  .app-header .tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-btn {
+    white-space: nowrap;
+    flex: none;
+    min-height: 40px;
+  }
+
+  /* Finger-sized segmented controls. */
+  .seg button {
+    min-height: 40px;
+  }
+
+  .app-title {
+    white-space: normal;
+  }
 }

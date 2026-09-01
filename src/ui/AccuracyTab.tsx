@@ -304,6 +304,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
                 Each fold&apos;s daily WAPE: best, median, and worst of the {folds} folds
               </span>
             </div>
+            <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
@@ -324,6 +325,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
                 ))}
               </tbody>
             </table>
+            </div>
             <p className="note" style={{ marginBottom: 0 }}>
               Each fold scores one 28-day window. A narrow spread between best and worst means the
               pooled score is stable across windows rather than carried by one lucky stretch.

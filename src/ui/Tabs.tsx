@@ -47,7 +47,7 @@ export function Tabs({ active, onChange }: TabsProps) {
 
   return (
     // div, not nav: ARIA does not allow the tablist role on a landmark element.
-    <div className="tabs" role="tablist" aria-label="Workbench sections">
+    <div className="tabs" role="tablist" aria-label="Workbench sections" data-tour="tabs">
       {TABS.map((t, i) => (
         <button
           key={t.id}

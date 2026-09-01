@@ -74,7 +74,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
     setProgress(null)
     // The backtest runs in the compute worker, so the UI stays interactive.
     backtestInWorker(records, queue, { folds: 8, horizonDays: 28 }, (fold, totalFolds) =>
-      setProgress(`fold ${fold} of ${totalFolds}`),
+      setProgress(`round ${fold} of ${totalFolds}`),
     )
       .then((out) => {
         if (token === runToken.current) setResults((prev) => ({ ...prev, [queue]: out }))
@@ -168,12 +168,13 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
 
   return (
     <div className="stack">
-      <div className="card">
+      <div className="card" data-tour="backtest">
         <div className="card-title">
-          <h2>Backtest scorecard: {queue}</h2>
+          <h2>Accuracy scorecard: {queue}</h2>
           <span className="card-subtitle">
-            <Term term="rollingOrigin">Rolling-origin</Term> backtest, 8 folds, 28-day horizon,
-            scored against raw actuals
+            Each method re-forecasts 8 held-back stretches of history (a{' '}
+            <Term term="rollingOrigin">rolling-origin</Term> backtest), 28 days at a time, scored
+            against raw actuals
           </span>
           <span style={{ flex: 1 }} />
           <button
@@ -192,12 +193,12 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             {running ? (
               <>
                 <span className="spinner" />{' '}
-                {progress ? `Running backtest, ${progress}...` : 'Running backtest...'}
+                {progress ? `Testing, ${progress}...` : 'Running the accuracy test...'}
               </>
             ) : reports ? (
-              'Rerun backtest'
+              'Rerun the accuracy test'
             ) : (
-              'Run backtest'
+              'Run the accuracy test'
             )}
           </button>
         </div>
@@ -210,16 +211,16 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
 
         {!reports && !running && !runError && (
           <div className="note">
-            Run the backtest to score every method out of sample. Each fold trains on history up
-            to its origin and forecasts the next 28 days; errors are pooled across folds.
+            Run the test to see how each method would have done. It hides the most recent history,
+            forecasts it, then compares forecast to reality; repeated 8 times at different cut-off
+            dates, 28 days each.
           </div>
         )}
 
         {reports && folds === 0 && (
           <div className="note">
-            Not enough history to backtest: this queue needs at least 168 days (140 training days
-            plus the 28-day horizon) before one fold can run. Load a longer history to score the
-            methods out of sample.
+            Not enough history for the accuracy test: this queue needs at least 168 days (140 to
+            learn from plus the 28-day test window). Load a longer history to score the methods.
           </div>
         )}
 
@@ -286,9 +287,9 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
               </table>
             </div>
             <p className="note" style={{ marginBottom: 0 }}>
-              {folds} folds ran. Best value per column is highlighted. MAPE skips zero-actual
-              points, so it scored {coverage('interval') !== null ? fmtPct(coverage('interval')!) : 'n/a'} of
-              interval points, {coverage('daily') !== null ? fmtPct(coverage('daily')!) : 'n/a'} of days, and{' '}
+              {folds} test rounds ran. Best value per column is highlighted. MAPE cannot score
+              moments with zero contacts, so it covered {coverage('interval') !== null ? fmtPct(coverage('interval')!) : 'n/a'} of
+              intervals, {coverage('daily') !== null ? fmtPct(coverage('daily')!) : 'n/a'} of days, and{' '}
               {coverage('weekly') !== null ? fmtPct(coverage('weekly')!) : 'n/a'} of weeks; WAPE and bias score
               every point.
             </p>
@@ -301,7 +302,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
           <div className="card-title">
             <h2>Accuracy by lead time</h2>
             <span className="card-subtitle">
-              Daily WAPE at each lead day, pooled across folds; lower is better
+              How accuracy fades as the forecast reaches further ahead; lower is better
             </span>
           </div>
           <div className="legend-row">
@@ -328,9 +329,9 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
         <div className="two-col">
           <div className="card">
             <div className="card-title">
-              <h2>Fold-to-fold spread</h2>
+              <h2>How steady are the scores?</h2>
               <span className="card-subtitle">
-                Each fold&apos;s daily WAPE: best, median, and worst of the {folds} folds
+                Best, median, and worst daily WAPE across the {folds} test rounds
               </span>
             </div>
             <div className="table-wrap">
@@ -356,8 +357,8 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             </table>
             </div>
             <p className="note" style={{ marginBottom: 0 }}>
-              Each fold scores one 28-day window. A narrow spread between best and worst means the
-              pooled score is stable across windows rather than carried by one lucky stretch.
+              Each round scores one 28-day window. A small gap between best and worst means the
+              headline score holds up across periods instead of leaning on one lucky stretch.
             </p>
           </div>
           <div className="card">
@@ -376,18 +377,17 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
             <h2>Reading the scorecard</h2>
           </div>
           <p className="prose" style={{ marginTop: 0, marginBottom: 0 }}>
-            WAPE weights every error by volume: it divides the sum of absolute errors by total
-            actual contacts, so a miss on a 3,000-contact Monday counts far more than the same
-            percentage miss on a quiet Saturday. MAPE instead averages each point&apos;s
-            percentage error equally, which lets small denominators dominate: an interval
-            expecting 4 contacts that gets 8 scores as a 100% miss even though it is off by only
-            4 contacts, and zero-volume intervals cannot be scored at all (see the coverage note
-            above). That small-denominator effect is also why interval-grain numbers read worse
-            than daily or weekly ones: the same forecast sliced into 48 intervals inherits pure
-            arrival noise that daily totals average away. For staffing decisions, daily WAPE is
-            the primary planning number, and interval WAPE mostly reflects how well the intraday
-            profile fits. Bias shows direction: positive means the method over-forecasts on
-            balance, negative means it under-forecasts.
+            WAPE asks: of everything that actually arrived, what share did the forecast miss by?
+            Big days count more, so a miss on a 3,000-contact Monday matters far more than the
+            same percentage miss on a quiet Saturday. MAPE treats every point equally instead,
+            which lets tiny numbers dominate: an interval expecting 4 contacts that gets 8 counts
+            as a 100% miss even though it is only 4 contacts off, and moments with zero contacts
+            cannot be scored at all (see the coverage note above). That is also why per-interval
+            numbers look worse than daily or weekly ones: slicing a day into 48 pieces adds random
+            arrival noise that daily totals smooth away. For staffing decisions, daily WAPE is the
+            number to plan with; interval WAPE mostly says how well the shape of the day fits.
+            Bias shows direction: positive means the method usually guesses high, negative means
+            it usually guesses low.
           </p>
         </div>
       )}

@@ -69,6 +69,7 @@
   --deco-forest: #328a3b;
   --deco-ember: #ff6d39;
   --deco-blossom: #f098d7;
+  --tour-scrim: rgba(8, 3, 49, 0.5);
   --shadow-sm: 0 4px 4px rgba(75, 68, 57, 0.05), 0 32px 16px rgba(75, 68, 57, 0.08);
   --shadow-md: 0 8px 16px rgba(99, 91, 79, 0.08), 0 32px 32px rgba(99, 91, 79, 0.04);
   --shadow-lg: 0 12px 24px rgba(75, 68, 57, 0.1), 0 48px 48px rgba(75, 68, 57, 0.1);
@@ -102,6 +103,7 @@
     --good: #5ec46c;
     --bad: #ff8f76;
     --highlight: rgba(230, 159, 0, 0.24);
+    --tour-scrim: rgba(4, 2, 16, 0.66);
     --shadow-sm: none;
     --shadow-md: none;
     --shadow-lg: none;
@@ -127,6 +129,7 @@
   --good: #5ec46c;
   --bad: #ff8f76;
   --highlight: rgba(230, 159, 0, 0.24);
+  --tour-scrim: rgba(4, 2, 16, 0.66);
   --shadow-sm: none;
   --shadow-md: none;
   --shadow-lg: none;
@@ -680,6 +683,358 @@ input[type="checkbox"] {
   :root:not([data-theme='light']) .term-pop {
     border-color: var(--btn-border);
     border-left-color: var(--deco-blossom);
+  }
+}
+
+/* Guided tour */
+
+:root {
+  --tour-glide: 380ms;
+  --tour-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --tour-fade: 220ms;
+}
+
+/* The launcher owns the nudge's positioning context, like .term-wrap does. */
+.tour-launch {
+  position: relative;
+}
+
+.btn-tour {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+
+.btn-tour:hover:not(:disabled) {
+  background: var(--accent-soft);
+  filter: brightness(0.97);
+}
+
+/* Quiet tertiary action: reads as text until hovered. */
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.tour-nudge {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 260px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-input);
+  padding: 12px;
+  box-shadow: var(--shadow-md);
+  /* The wait before the offer appears is a delay here, so the app runs no
+     timer. The keyframes carry visibility so the backwards fill also keeps the
+     invisible chip from catching clicks during the delay. */
+  animation: tour-nudge-rise 220ms var(--tour-ease) 900ms both;
+}
+
+.tour-nudge-text {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tour-nudge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/*
+ * overflow: hidden clips the hole's 100vmax scrim to the viewport, so the
+ * spotlight can never grow the page's scroll area in either axis.
+ */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 200;
+  pointer-events: none;
+  animation: tour-fade-in var(--tour-fade) ease both;
+}
+
+.tour-overlay.is-closing {
+  animation: tour-fade-out 140ms ease both;
+}
+
+/* Swallows every background click. No role, no handler, nothing to announce. */
+.tour-blocker {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+/* The dialog unmounts when the fade starts, so the page has to be usable for
+   those 140ms: without this the blocker would still eat clicks after the
+   keyboard trap is gone. */
+.tour-overlay.is-closing .tour-blocker {
+  pointer-events: none;
+}
+
+/* One element carries the scrim, the cutout, and the ring around the target. */
+.tour-hole {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 100vmax var(--tour-scrim),
+    inset 0 0 0 2px var(--accent);
+  will-change: transform, width, height;
+  transition:
+    transform var(--tour-glide) var(--tour-ease),
+    width var(--tour-glide) var(--tour-ease),
+    height var(--tour-glide) var(--tour-ease),
+    border-radius 260ms var(--tour-ease);
+}
+
+.tour-pop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 202;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  pointer-events: auto;
+  opacity: 0;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-lg);
+  /* The card trails the spotlight by a beat, so the light leads the eye. */
+  transition:
+    top var(--tour-glide) var(--tour-ease) 40ms,
+    left var(--tour-glide) var(--tour-ease) 40ms,
+    opacity var(--tour-fade) ease;
+}
+
+.tour-pop.is-shown {
+  opacity: 1;
+}
+
+/* No target resolved: the copy still has to be readable somewhere sensible. */
+.tour-pop--center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/*
+ * Phone dock. The JS placement decides when this applies; keep the breakpoint
+ * out of here so the two can never disagree.
+ */
+.tour-pop--sheet {
+  top: auto;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  width: auto;
+  max-width: none;
+  max-height: 45vh;
+  overflow-y: auto;
+  transform: none;
+}
+
+.tour-progress {
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.tour-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 240ms ease-out;
+}
+
+.tour-pop-body {
+  margin-top: 12px;
+  animation: tour-rise 180ms var(--tour-ease) 80ms both;
+}
+
+.tour-pop-body h2 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.tour-pop-body p {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.tour-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.tour-count {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tour-foot-spacer {
+  flex: 1;
+}
+
+/* Tight enough that the count and all three buttons hold one row at 320px. */
+.tour-foot .btn {
+  padding: 6px 11px;
+}
+
+/* Finger-sized controls on the phone dock, matching the app's other buttons. */
+.tour-pop--sheet .tour-foot .btn {
+  min-height: 40px;
+}
+
+/* The 64px sticky header must never park on top of a scrolled-to target. */
+[data-tour] {
+  scroll-margin-top: 96px;
+  scroll-margin-bottom: 96px;
+}
+
+/* Visible to screen readers only; used for the step announcement. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes tour-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tour-nudge-rise {
+  from {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+}
+
+@keyframes tour-nudge-fade-in {
+  from {
+    opacity: 0;
+    visibility: hidden;
+  }
+  to {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+@keyframes tour-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tour-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Dark mode drops shadows, so these surfaces lean on a stronger border. */
+:root[data-theme='dark'] .tour-pop,
+:root[data-theme='dark'] .tour-nudge {
+  border-color: var(--btn-border);
+}
+
+:root[data-theme='dark'] .tour-nudge {
+  border-left-color: var(--accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .tour-pop,
+  :root:not([data-theme='light']) .tour-nudge {
+    border-color: var(--btn-border);
+  }
+
+  :root:not([data-theme='light']) .tour-nudge {
+    border-left-color: var(--accent);
+  }
+}
+
+/* A wrapped header can push an absolute chip off screen; dock it instead. */
+@media (max-width: 620px) {
+  .tour-nudge {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: auto;
+  }
+}
+
+/*
+ * Reduced motion: the spotlight still moves target to target, it just jumps.
+ * This block has to sit after the rules above, not with the .spinner block
+ * further up the file, or the transitions declared there would win.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .tour-hole,
+  .tour-pop {
+    transition: none;
+  }
+
+  .tour-pop-body {
+    animation: none;
+  }
+
+  .tour-progress-bar {
+    transition: none;
+  }
+
+  /* Keep the wait before the offer; drop the slide. */
+  .tour-nudge {
+    animation: tour-nudge-fade-in 220ms ease 900ms both;
   }
 }
 

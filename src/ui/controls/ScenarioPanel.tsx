@@ -71,6 +71,11 @@ interface ScenarioPanelProps {
   onReset: () => void
   /** True when the state already equals DEFAULT_SCENARIO. */
   isDefault: boolean
+  /**
+   * Guided-tour target marker. The panel renders twice in compare mode, so the
+   * tab decides which copy carries it rather than the panel claiming it.
+   */
+  dataTour?: string
 }
 
 export function ScenarioPanel({
@@ -80,12 +85,13 @@ export function ScenarioPanel({
   onChange,
   onReset,
   isDefault,
+  dataTour,
 }: ScenarioPanelProps) {
   const erlangA = state.mode === 'erlangA'
   const fixed = state.staffMode === 'fixed'
   const bodiesAtHeads = Math.floor(state.fixedHeads * (1 - state.shrinkagePct / 100))
   return (
-    <div className="card">
+    <div className="card" data-tour={dataTour}>
       <div className="card-title">
         <h2>{title}</h2>
         <span style={{ flex: 1 }} />
@@ -122,8 +128,8 @@ export function ScenarioPanel({
         </div>
         <div className="slider-hint">
           {fixed
-            ? 'Projects service at the heads you enter.'
-            : 'Solves for the heads that hit the target.'}
+            ? 'Shows the service you would get with the people you enter.'
+            : 'Finds how many people you need to hit the target.'}
         </div>
       </div>
 
@@ -134,7 +140,7 @@ export function ScenarioPanel({
           min={0}
           max={200}
           format={(v) => `${v}`}
-          hint={`Flat heads on every interval with volume. At ${state.shrinkagePct}% shrinkage that is ${bodiesAtHeads} on the phones.`}
+          hint={`The same headcount every half hour with volume. At ${state.shrinkagePct}% shrinkage that is ${bodiesAtHeads} actually on the phones.`}
           onChange={(v) => onChange({ fixedHeads: v })}
         />
       )}
@@ -162,7 +168,9 @@ export function ScenarioPanel({
           </button>
         </div>
         <div className="slider-hint">
-          {erlangA ? 'Models caller abandonment via patience.' : 'Classic queue, no abandonment.'}
+          {erlangA
+            ? 'Real-world mode: callers can hang up when their patience runs out.'
+            : 'Textbook mode: assumes every caller waits forever.'}
         </div>
       </div>
 
@@ -247,7 +255,7 @@ export function ScenarioPanel({
         onChange={(v) => onChange({ chatConcurrency: v })}
       />
       <Slider
-        label="Volume delta"
+        label="Volume change"
         value={state.volumeDeltaPct}
         min={-30}
         max={30}
@@ -255,7 +263,7 @@ export function ScenarioPanel({
         onChange={(v) => onChange({ volumeDeltaPct: v })}
       />
       <Slider
-        label="AHT delta"
+        label="AHT change"
         term="aht"
         value={state.ahtDeltaPct}
         min={-20}

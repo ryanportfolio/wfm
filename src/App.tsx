@@ -16,6 +16,9 @@ import { StaffingTab } from './ui/StaffingTab'
 import { EmptyState } from './ui/EmptyState'
 import { ThemeToggle } from './ui/ThemeToggle'
 import { useChartTheme } from './ui/theme'
+import { GuidedTour } from './ui/tour/GuidedTour'
+import { TourNudge } from './ui/tour/TourNudge'
+import { markTourSeen, readTourSeen, shouldAutoOffer } from './ui/tour/tourStorage'
 
 export default function App() {
   const theme = useChartTheme()
@@ -27,6 +30,11 @@ export default function App() {
   const [loadingSample, setLoadingSample] = useState(false)
   const [queueChoice, setQueueChoice] = useState('')
   const [horizon, setHorizon] = useState<Horizon>(14)
+  const [tourOpen, setTourOpen] = useState(false)
+  // Decided during the first render, so the offer needs no timer and no state
+  // write after mount; the 900ms wait before it appears is a CSS delay.
+  const [showNudge, setShowNudge] = useState(() => shouldAutoOffer(readTourSeen()))
+  const tourBtnRef = useRef<HTMLButtonElement>(null)
 
   const queues = useMemo(() => {
     if (!records) return []
@@ -127,6 +135,17 @@ export default function App() {
 
   const hasData = records !== null && queue !== ''
 
+  const openTour = () => {
+    markTourSeen()
+    setShowNudge(false)
+    setTourOpen(true)
+  }
+
+  const dismissNudge = () => {
+    markTourSeen()
+    setShowNudge(false)
+  }
+
   // Shown in forecast-dependent tabs while the worker computes a cache miss.
   const computingCard = (
     <div className="card">
@@ -143,7 +162,7 @@ export default function App() {
         <Tabs active={tab} onChange={setTab} />
         <div className="header-spacer" />
         {hasData && (
-          <div className="queue-picker">
+          <div className="queue-picker" data-tour="queue">
             <label htmlFor="queue-select">Queue</label>
             <select
               id="queue-select"
@@ -158,6 +177,19 @@ export default function App() {
             </select>
           </div>
         )}
+        <div className="tour-launch">
+          <button
+            ref={tourBtnRef}
+            type="button"
+            className="btn btn-tour"
+            aria-haspopup="dialog"
+            aria-expanded={tourOpen}
+            onClick={openTour}
+          >
+            Tour
+          </button>
+          {showNudge && <TourNudge onStart={openTour} onDismiss={dismissNudge} />}
+        </div>
         <ThemeToggle />
       </header>
 
@@ -198,7 +230,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to forecast yet"
-              text="Once data is loaded, this tab shows a daily forecast chart with a calibrated 80% range, an intraday volume and AHT view, and the blend weights the ensemble fitted per horizon bucket."
+              text="Load data first. Then this tab shows the predicted contacts per day, a shaded band showing where the real number lands 8 times in 10, each day in half-hour detail (volume and handle time), and how the blend mixes its three methods."
               onGoData={() => setTab('data')}
             />
           )}
@@ -215,7 +247,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to backtest yet"
-              text="Once data is loaded, this tab scores every forecast method on held-out history: a WAPE, MAPE, and bias scorecard at interval, daily, and weekly grain, plus accuracy by lead time."
+              text="Load data first. Then this tab checks the forecast against reality: each method re-forecasts past weeks it was never shown and gets scored (WAPE, MAPE, bias) per interval, per day, and per week, plus a view of how accuracy fades the further ahead it predicts."
               onGoData={() => setTab('data')}
             />
           )}
@@ -234,7 +266,7 @@ export default function App() {
           ) : (
             <EmptyState
               title="No data to staff against yet"
-              text="Once data is loaded, this tab turns the forecast into agents needed per 30-minute interval, with a scenario panel for service level, shrinkage, patience, and chat concurrency."
+              text="Load data first. Then this tab turns the forecast into how many people you need each half hour, with sliders to test what-ifs: answer-speed target, time lost to breaks and meetings, caller patience, chats per agent."
               onGoData={() => setTab('data')}
             />
           )}
@@ -246,6 +278,17 @@ export default function App() {
         regression, inverse-WAPE ensemble; Erlang A/C staffing.{' '}
         <a href="https://github.com/ryanportfolio/wfm/blob/main/docs/research.md">Research notes</a>
       </footer>
+
+      {tourOpen && (
+        <GuidedTour
+          tab={tab}
+          hasData={hasData}
+          onSelectTab={setTab}
+          onLoadSample={loadSample}
+          onClose={() => setTourOpen(false)}
+          launcherRef={tourBtnRef}
+        />
+      )}
     </>
   )
 }

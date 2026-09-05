@@ -3,7 +3,7 @@
  * plus pure what-if scenario application for live sliders.
  */
 import type { ForecastPoint, StaffingGrid, StaffingInterval } from './types'
-import { asa, erlangA, occupancy, requiredAgents, serviceLevel } from './erlang'
+import { asa, erlangA, occupancy, requiredAgents, serviceLevel, validateStaffingWorkload } from './erlang'
 import type { ErlangMode } from './erlang'
 
 export interface StaffingConfig {
@@ -103,6 +103,7 @@ export function projectAtStaffing(
   }
   const N = Math.floor(agentsOnPhones)
   const A = (volume * ahtSec) / intervalSec
+  validateStaffingWorkload(A, agentsOnPhones)
   if (N <= 0) {
     return {
       sl: 0,

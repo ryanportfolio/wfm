@@ -212,7 +212,9 @@ a {
   border-bottom: 1px solid var(--border);
 }
 
-/* Scales with the viewport so the header holds one row from 1280px up. */
+/* Keep title and utility controls above a dedicated navigation row. */
+.app-header > .tabs { flex-basis: 100%; }
+
 .app-title {
   font-size: clamp(20px, 1.75vw + 1px, 24px);
   white-space: nowrap;
@@ -577,6 +579,9 @@ input[type="checkbox"] {
 .table-wrap {
   overflow-x: auto;
 }
+
+.intraday-controls { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
+.intraday-controls label { display: flex; flex-direction: column; gap: 6px; }
 
 .scroll .table th {
   position: sticky;
@@ -1228,3 +1233,27 @@ input[type="checkbox"] {
     white-space: normal;
   }
 }
+
+/* Capacity planning keeps wide numeric data inside its own scroll region. */
+.capacity-panel { min-width: 0; font-size: 16px; }
+.capacity-panel > .card, .capacity-controls { min-width: 0; }
+.capacity-controls { margin: 0; }
+.capacity-controls legend { font-weight: 600; padding: 0 8px; }
+.capacity-input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px; }
+.capacity-input-grid label { display: block; min-height: 3em; margin-bottom: 6px; }
+.capacity-input-grid input { width: 100%; }
+.capacity-input-grid .error-text { display: block; font-size: 14px; }
+.capacity-panel input[aria-invalid="true"] { border-color: var(--bad); }
+.capacity-table { min-width: 1080px; }
+.capacity-table .num-input { width: 130px; }
+.capacity-table small { display: block; }
+.capacity-panel .scroll { max-width: 100%; }
+.capacity-seed-notes { margin-top: 16px; }
+.capacity-seed-notes summary { cursor: pointer; color: var(--text-muted); }
+@media (max-width: 620px) {
+  .capacity-summary { grid-template-columns: minmax(0, 1fr); }
+  .capacity-input-grid label { min-height: 0; }
+}
+.project-controls { margin-bottom: 1rem; }
+.project-controls #project-name { width: min(100%, 240px); }
+.project-controls .note:last-child { margin-bottom: 0; }

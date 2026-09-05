@@ -136,6 +136,33 @@ describe('monotonicity', () => {
 })
 
 describe('erlangA', () => {
+  it('bounds costly uniformization for tiny AHT, long targets and overflowing estimates', () => {
+    expect(() => erlangA(1e-8 / 1800, 1, 1e-8, 120, 20)).toThrow('Check AHT, patience and answer target in seconds')
+    // Many phases matter even when the step count alone is modest.
+    expect(() => erlangA(10, 10, 1, 1e7, 1000)).toThrow('supported workload')
+    expect(() => erlangA(.5, 1, .01, 1e308, 1e308)).toThrow('supported workload')
+    expect(() => erlangA(.5, 1, Number.MIN_VALUE, 120, 20)).toThrow('supported workload')
+    expect(() => erlangA(1, Infinity, 300, 120, 20)).toThrow('2000 on-contact')
+    expect(() => erlangA(Infinity, 1, 300, 120, 20)).toThrow('1000 Erlangs')
+  })
+
+  it('preserves fractional seconds and time-unit scaling within the work budget', () => {
+    const ordinary = erlangA(10, 12, 300, 120, 20)
+    const fractional = erlangA(10, 12, .3, .12, .02)
+    expect(fractional.serviceLevel).toBeCloseTo(ordinary.serviceLevel, 12)
+    expect(fractional.abandonProb).toBeCloseTo(ordinary.abandonProb, 12)
+    expect(fractional.asa * 1000).toBeCloseTo(ordinary.asa, 12)
+  })
+
+  it('uses the eventual answered fraction only with a negligible late-service bound', () => {
+    const short = erlangA(48, 50, 240, 90, 20)
+    const long = erlangA(48, 50, 240, 90, 1e6)
+    expect(short.pWait * Math.exp(-1e6 / 90)).toBeLessThanOrEqual(1e-12)
+    expect(long.serviceLevel).toBe(1 - short.abandonProb)
+    expect(long.asa).toBe(short.asa)
+    expect(long.occupancy).toBe(short.occupancy)
+  })
+
   it('P(abandon) ~= theta * E[wait] (offered-load relation, 20% relative)', () => {
     // ASA here is the mean wait of answered calls, slightly below the
     // all-arrivals mean wait that makes the identity exact, hence the
@@ -183,6 +210,13 @@ describe('erlangA', () => {
 
 describe('requiredAgents', () => {
   const slTarget = { pct: 0.8, seconds: 20 }
+  it('avoids expensive search points that cannot serve enough of a 1000-Erlang queue', () => {
+    const r = requiredAgents('erlangA', 30000, 60, 1800, { pct: .8, seconds: 60 }, 300)
+    expect(r.sl).toBeGreaterThanOrEqual(.8)
+    expect(erlangA(1000, r.bodies - 1, 60, 300, 60).serviceLevel).toBeLessThan(.8)
+    const capped = requiredAgents('erlangA', 30000, 60, 1800, { pct: .5, seconds: 60 }, 300, .01)
+    expect(capped.abandonPct).toBeLessThanOrEqual(.01)
+  })
 
   it('erlangC: returns N > A and meets the target', () => {
     const r = requiredAgents('erlangC', 360, 240, 1800, slTarget)
@@ -255,4 +289,16 @@ describe('erlangA staffing below offered load', () => {
     const r = requiredAgents('erlangC', 3600, 240, 1800, { pct: 0.8, seconds: 60 })
     expect(r.bodies).toBeGreaterThan(480)
   })
+})
+
+it('rejects oversized load promptly and solves the supported 1000-Erlang boundary unchanged', () => {
+  for (const mode of ['erlangC', 'erlangA'] as const) {
+    expect(() => requiredAgents(mode, 60000000000, 300, 1800, { pct: .8, seconds: 20 }, 120)).toThrow('1000 Erlangs')
+    expect(() => requiredAgents(mode, 6000.01, 300, 1800, { pct: .8, seconds: 20 }, 120)).toThrow('1000 Erlangs')
+    const r = requiredAgents(mode, 6000, 300, 1800, { pct: .95, seconds: 10 }, 120, .01, .75)
+    expect(r.bodies).toBe(1334)
+    expect(r.sl).toBeGreaterThanOrEqual(.95)
+    expect(r.occupancy).toBeLessThanOrEqual(.75)
+  }
+  expect(() => requiredAgents('erlangC', 6000, 300, 1800, { pct: .8, seconds: 20 }, undefined, undefined, .1)).toThrow('more than 2000')
 })

@@ -7,20 +7,25 @@ import { createStaffingSession, isSuperseded } from './workerClient'
 import type { ChartTheme } from './theme'
 import { ScenarioPanel, DEFAULT_SCENARIO, toEngineScenario } from './controls/ScenarioPanel'
 import type { ScenarioState } from './controls/ScenarioPanel'
-import { encodeStaffingHash, isDefaultScenario, staffingUrlFromHash } from './scenarioUrl'
+import { encodeStaffingHash, isDefaultScenario } from './scenarioUrl'
 import { staffingDailyCsv, staffingIntervalCsv } from '../engine/exportCsv'
 import { downloadTextFile, fileSlug } from './download'
 import { StaffingIntervalChart } from './charts/StaffingIntervalChart'
 import type { StaffingRow } from './charts/StaffingIntervalChart'
 import { fmtDateWeekday, fmtInt, fmtNum, fmtPct, fmtSec, fmtSigned } from './format'
 import { errorMessage } from './errors'
+import { deriveIntervalSec } from './staffingInterval'
 import { Term } from './Term'
+import type { StaffingState } from './project'
+import type { Dispatch, SetStateAction } from 'react'
 
 interface StaffingTabProps {
   forecast: ForecastResult
   queue: string
   horizon: number
   theme: ChartTheme
+  settings: StaffingState
+  onSettingsChange: Dispatch<SetStateAction<StaffingState>>
 }
 
 interface DayRow {
@@ -41,15 +46,6 @@ interface GridSummary {
   weightedOcc: number
   /** Volume-weighted SL across the whole horizon. */
   weightedSl: number
-}
-
-function deriveIntervalSec(points: readonly ForecastPoint[]): number {
-  if (points.length >= 2 && points[0].ts.slice(0, 10) === points[1].ts.slice(0, 10)) {
-    const secOf = (ts: string) => Number(ts.slice(11, 13)) * 3600 + Number(ts.slice(14, 16)) * 60
-    const diff = secOf(points[1].ts) - secOf(points[0].ts)
-    if (diff > 0) return diff
-  }
-  return 1800
 }
 
 function summarize(
@@ -211,7 +207,7 @@ function useGrid(
   return { grid, computing, error, retry: () => setAttempt((a) => a + 1) }
 }
 
-export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProps) {
+export function StaffingTab({ forecast, queue, horizon, theme, settings, onSettingsChange }: StaffingTabProps) {
   const isChat = queue.toLowerCase().includes('chat')
   const intervalForecast = forecast.intervalForecast
 
@@ -233,20 +229,14 @@ export function StaffingTab({ forecast, queue, horizon, theme }: StaffingTabProp
     [intervalForecast, queue],
   )
 
-  // A shared link (#s=...&r=...) seeds scenarios and cost rate; otherwise defaults.
-  const [initialUrl] = useState(() => staffingUrlFromHash(window.location.hash))
-  const [stateA, setStateA] = useState<ScenarioState>(initialUrl.scenarios?.a ?? DEFAULT_SCENARIO)
-  const [compare, setCompare] = useState(initialUrl.scenarios?.b != null)
-  const [stateB, setStateB] = useState<ScenarioState | null>(initialUrl.scenarios?.b ?? null)
+  const { a: stateA, b: stateB, compare, costText } = settings
+  const setStateA = (value: SetStateAction<ScenarioState>) => onSettingsChange(s => ({ ...s, a: typeof value === 'function' ? value(s.a) : value }))
+  const setStateB = (value: SetStateAction<ScenarioState | null>) => onSettingsChange(s => ({ ...s, b: typeof value === 'function' ? value(s.b) : value }))
+  const setCompare = (value: boolean) => onSettingsChange(s => ({ ...s, compare: value }))
+  const setCostText = (value: string) => onSettingsChange(s => ({ ...s, costText: value }))
   const [selectedDay, setSelectedDay] = useState('')
   const [copied, setCopied] = useState(false)
 
-  // Cost per scheduled hour. Raw text so partial input ("0.", "12.") survives
-  // typing; the parsed rate is null (feature off) until the text is a positive
-  // number.
-  const [costText, setCostText] = useState(() =>
-    initialUrl.costPerHour !== null ? String(initialUrl.costPerHour) : '',
-  )
   const costRate = useMemo(() => {
     if (costText.trim() === '') return null
     const n = Number(costText)

@@ -7,6 +7,21 @@
  * - Rates are per second: mu = 1/ahtSec, theta = 1/patienceSec.
  */
 
+/** Practical limits for interactive staffing, before loops proportional to load or agents. */
+export const MAX_STAFFING_ERLANGS = 1000
+export const MAX_STAFFING_BODIES = 2000
+/** Maximum phase updates in one Erlang A uniformization solve. */
+const MAX_ERLANG_A_PHASE_UPDATES = 5_000_000
+const ERLANG_A_WORK_ERROR = 'Erlang A assumptions exceed the supported workload. Check AHT, patience and answer target in seconds, and on-contact staffing.'
+export function validateStaffingWorkload(load: number, bodies?: number): void {
+  if (!Number.isFinite(load) || load > MAX_STAFFING_ERLANGS) {
+    throw new Error('Staffing supports up to 1000 Erlangs per interval. Check contacts, AHT and concurrency before calculating.')
+  }
+  if (bodies !== undefined && (!Number.isFinite(bodies) || bodies > MAX_STAFFING_BODIES)) {
+    throw new Error('Staffing supports up to 2000 on-contact agents per interval. Check scheduled heads and shrinkage; larger staffing levels exceed this model’s supported workload.')
+  }
+}
+
 /**
  * Erlang B blocking probability via the numerically stable recursion:
  * B(0) = 1; B(k) = A*B(k-1) / (k + A*B(k-1)).
@@ -114,9 +129,14 @@ export function erlangA(
   if (A <= 0) return { pWait: 0, abandonProb: 0, serviceLevel: 1, asa: 0, occupancy: 0 }
   if (!(N >= 1)) throw new Error('erlangA requires N >= 1')
   if (!(ahtSec > 0) || !(patienceSec > 0)) throw new Error('erlangA requires ahtSec > 0 and patienceSec > 0')
+  validateStaffingWorkload(A, N)
+  if (!Number.isInteger(N) || !Number.isFinite(ahtSec) || !Number.isFinite(patienceSec) || !Number.isFinite(targetSec)) {
+    throw new Error(ERLANG_A_WORK_ERROR)
+  }
 
   const mu = 1 / ahtSec
   const theta = 1 / patienceSec
+  if (!Number.isFinite(N * mu + theta)) throw new Error(ERLANG_A_WORK_ERROR)
 
   // Unnormalized stationary log-weights.
   const logW: number[] = [0]
@@ -177,6 +197,18 @@ export function erlangA(
   if (targetSec > 0 && pWait > 0) {
     const LAMBDA = N * mu + K * theta // = max R_m over m = 0..K-1
     const a = LAMBDA * targetSec
+    const nMax = Math.ceil(a + 12 * Math.sqrt(a) + 200)
+    const phaseUpdates = K * nMax
+    if (!Number.isFinite(phaseUpdates) || phaseUpdates > MAX_ERLANG_A_PHASE_UPDATES) {
+      // A caller still waiting at t must have survived its independent
+      // exponential patience clock. Thus the omitted late-served mass is
+      // <= pWait * exp(-theta*t), regardless of the queue phases. Use the
+      // eventual answered fraction only when its SL error is <= 1e-12.
+      if (pWait * Math.exp(-theta * targetSec) <= 1e-12) {
+        return { pWait, abandonProb, serviceLevel: answered, asa: asaOut, occupancy: (A * answered) / N }
+      }
+      throw new Error(ERLANG_A_WORK_ERROR)
+    }
     const v = new Float64Array(K)
     let servedWaitingBound = 0
     {
@@ -192,7 +224,6 @@ export function erlangA(
     let cum = Math.exp(logQ)
     slWait += cum * absorbed // zero, kept for clarity
     const logA_ = Math.log(a)
-    const nMax = Math.ceil(a + 12 * Math.sqrt(a) + 200)
     for (let n = 1; n <= nMax; n++) {
       // One uniformized DTMC step.
       absorbed += (v[0] * (N * mu)) / LAMBDA
@@ -268,6 +299,7 @@ export function requiredAgents(
   }
 
   const A = (volume * ahtSec) / intervalSec
+  validateStaffingWorkload(A)
 
   const evaluate = (N: number): RequiredAgentsResult & { feasible: boolean } => {
     let sl: number
@@ -294,14 +326,16 @@ export function requiredAgents(
   }
 
   const start = Math.max(1, Math.ceil(A))
-  const MAX_STEPS = 100_000
-  for (let N = start; N < start + MAX_STEPS; N++) {
+  for (let N = start; N <= MAX_STAFFING_BODIES; N++) {
     const r = evaluate(N)
     if (!r.feasible) continue
     let best = r
     if (mode === 'erlangA' && N > 1) {
-      // Feasibility is monotone in N; search below for the true minimum.
-      let lo = 1
+      // Served throughput cannot exceed N/A of arrivals. This necessary
+      // lower bound skips deep queues that cannot satisfy SL/abandonment,
+      // without mistaking a computational-budget error for infeasibility.
+      const minimumServed = Math.max(slTarget.pct, maxAbandonPct === undefined ? 0 : 1 - maxAbandonPct)
+      let lo = Math.max(1, Math.ceil(A * minimumServed))
       let hi = N
       while (lo < hi) {
         const mid = Math.floor((lo + hi) / 2)
@@ -317,5 +351,5 @@ export function requiredAgents(
     const { feasible: _feasible, ...result } = best
     return result
   }
-  throw new Error('requiredAgents did not converge within 100000 agents above ceil(A)')
+  throw new Error('Staffing targets require more than 2000 on-contact agents. Check demand units and service, occupancy or abandonment targets; these assumptions exceed the supported staffing range.')
 }

@@ -37,7 +37,7 @@ interface NumSpec {
 }
 
 // Ranges and steps mirror the sliders in ScenarioPanel.
-const NUM_SPECS: NumSpec[] = [
+export const NUM_SPECS: NumSpec[] = [
   { key: 'f', field: 'fixedHeads', min: 0, max: 200, step: 1 },
   { key: 's', field: 'slPct', min: 50, max: 95, step: 1 },
   { key: 'w', field: 'slSeconds', min: 10, max: 60, step: 5 },

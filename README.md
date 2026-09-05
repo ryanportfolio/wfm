@@ -32,7 +32,9 @@ timestamp,queue,offered,aht
 2026-01-05T09:00,voice-support,58,398
 ```
 
-MAD-based outlier cleaning runs before any model sees the data, and the flagged points are listed, not hidden.
+Duplicate queue/timestamp rows reject the entire file, including equivalent timestamps with omitted zero seconds. Other invalid rows are listed and skipped; valid rows load. Contact counts and AHT must be finite, nonnegative numbers, and positive demand needs positive AHT. Review row errors before using the results.
+
+The completeness report separates missing dates, missing expected slots and explicit zero rows for every queue. Expected slots are inferred from repeated weekday history, so gaps may be closures or missing data. The forecast still fills absent calendar days with zero and uses available interval records; resolve unexplained gaps before planning. MAD-based outlier cleaning lists each flagged point and replacement.
 
 **Forecast.** Three component methods plus a custom ensemble, all hand-implemented in TypeScript:
 
@@ -47,7 +49,21 @@ Daily forecasts are spread to 30-minute intervals with recency-weighted day-of-w
 
 **Staffing.** Interval requirements via Erlang C or Erlang A (abandonment-aware; the birth-death solve was validated against an independent 400k-arrival Monte Carlo simulation to within 0.3pp on service level). Levers: SL target, patience, abandonment cap, shrinkage (applied as division, the correct way), occupancy cap, chat concurrency, volume and AHT deltas. Scenario B comparison shows the FTE-hour and occupancy deltas per day. A fixed-staff ("what I have") mode projects SL, ASA, and abandonment at the heads you enter instead of solving for a target, flagging the intervals that miss. An optional cost-per-hour rate prices scheduled FTE-hours.
 
-**Working with results.** Forecast, scorecard, and staffing tables download as CSV. Scenario settings encode into the URL hash, so a what-if is shareable as a link. Forecasts, backtests, and staffing solves run in a Web Worker to keep the sliders responsive, and a header toggle switches between light, dark, and system theme.
+**Capacity.** Compare a no-hire baseline with one hiring class across 13 weeks for the selected queue. Enter starting paid headcount, weekly attrition, paid hours, shrinkage, hourly cost, training and ramp. Demand is productive FTE: required on-contact hours divided by paid hours per week. Supply applies shrinkage once. The chart, table and CSV show required versus available FTE, shortages and paid cost.
+
+Use "Seed demand from selected forecast" to convert complete seven-day blocks of default staffing need (Erlang A, 80% in 20 seconds, 120-second patience, 90% occupancy cap; two concurrent chats for chat queues). The last complete week repeats through week 13, labeled as an editable assumption. Seeding is explicit; later scenario changes do not rewrite the plan.
+
+"Load illustrative hiring example" starts with 100 heads, 20% shrinkage and 40 paid hours: demand rises from 78 to 84 FTE in week 7. A 10-person class starts in week 2, trains for two weeks, then ramps over two weeks. The baseline first falls short in week 7; the proposal covers all 13 weeks. Each queue keeps its own plan.
+
+**Intraday.** Choose a forecast day and an "Observed through" boundary. Fill every elapsed interval's actual contacts, including real zeros; blank means missing. Remaining demand scales by elapsed actuals divided by elapsed baseline. With no observed baseline, remaining demand stays at baseline and the interface explains why. Enter scheduled heads by interval to compare baseline and revised required bodies and projected service level. Staffing uses scenario A's AHT, shrinkage, concurrency and service assumptions; its volume delta does not alter the original baseline.
+
+Intraday supports up to 48 half-hour intervals starting at :00 or :30, 100,000 contacts, 500 scheduled heads and 100 Erlangs per interval. A worker stops jobs after 10 seconds. Staffing and fixed-staff projections support up to 1,000 Erlangs and 2,000 on-contact agents per interval. Erlang A also limits each solve to 5 million waiting-phase updates, with a bounded-error shortcut for negligible late-service probability; see [model limits](docs/design.md). Unsupported assumptions produce an error. Check contact counts, concurrency, and AHT, patience and answer target in seconds if a limit is reached. Each interval uses steady-state queue math; waiting callers do not carry into the next interval.
+
+**Named projects.** Name the working plan and choose "Save project" to download JSON. "Open project" restores all interval history, selected queue and horizon, staffing A/B and cost settings, each queue's capacity plan, and intraday inputs by queue/day. Version 1 files open with empty intraday inputs; current files use version 2. Invalid or unsupported files leave current work intact. Project files are local downloads, with no automatic upload or autosave.
+
+Save before closing the page. Loading replacement CSV or sample data clears capacity and intraday plans.
+
+**Working with results.** Forecast, scorecard, staffing, capacity and intraday tables download as CSV. Staffing scenario settings encode into the URL hash, so a what-if is shareable as a link; links do not contain data, capacity plans or intraday inputs. An opened project takes precedence over initial link settings. Forecasts, backtests, and staffing solves run in a Web Worker to keep the sliders responsive, and a header toggle switches between light, dark, and system theme.
 
 ![Staffing tab, dark theme](docs/screenshots/staffing-dark.png)
 
@@ -57,7 +73,7 @@ Research notes with sources are in [docs/research.md](docs/research.md): Taylor 
 
 ## Roadmap
 
-This release is module 1, the forecast + staffing engine. Modules 2-4 (capacity planner, queue strategy analyzer, intraday reforecast simulator) are specced in [docs/design.md](docs/design.md#module-roadmap).
+Forecast/staffing, the one-queue capacity planner, named projects and intraday reforecast are implemented. Queue strategy analysis (pooled versus split queues) remains future work. Scope and limitations are in [docs/design.md](docs/design.md#module-roadmap).
 
 ## Stack
 

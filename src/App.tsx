@@ -6,12 +6,22 @@ import { errorMessage } from './ui/errors'
 import { generateSampleData } from './engine/sampleData'
 import { forecastInWorker } from './ui/workerClient'
 import type { ForecastResult } from './engine/forecastPipeline'
+import { ProjectControls } from './ui/ProjectControls'
+import { initialStaffing, MAX_PROJECT_BYTES, parseProject, serializeProject } from './ui/project'
+import type { Project } from './ui/project'
+import { downloadTextFile, fileSlug } from './ui/download'
 import { Tabs } from './ui/Tabs'
 import type { TabId } from './ui/Tabs'
 import { DataTab } from './ui/DataTab'
 import { ForecastTab } from './ui/ForecastTab'
 import type { Horizon } from './ui/ForecastTab'
 import { AccuracyTab } from './ui/AccuracyTab'
+import { CapacityTab } from './ui/CapacityTab'
+import { IntradayTab } from './ui/IntradayTab'
+import { emptyIntradayState } from './ui/intradayState'
+import type { IntradayState } from './ui/intradayState'
+import { emptyCapacityState } from './ui/capacityState'
+import type { CapacityState } from './ui/capacityState'
 import { StaffingTab } from './ui/StaffingTab'
 import { EmptyState } from './ui/EmptyState'
 import { ThemeToggle } from './ui/ThemeToggle'
@@ -22,6 +32,11 @@ import { markTourSeen, readTourSeen, shouldAutoOffer } from './ui/tour/tourStora
 
 export default function App() {
   const theme = useChartTheme()
+  const [projectName, setProjectName] = useState('Untitled project')
+  const [projectError, setProjectError] = useState<string | null>(null)
+  const [projectStatus, setProjectStatus] = useState<string | null>(null)
+  const [staffing, setStaffing] = useState(() => initialStaffing(window.location.hash))
+  const importSequence = useRef(0)
   const [tab, setTab] = useState<TabId>('data')
   const [records, setRecords] = useState<IntervalRecord[] | null>(null)
   const [csvErrors, setCsvErrors] = useState<CsvError[]>([])
@@ -29,6 +44,9 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState(false)
   const [queueChoice, setQueueChoice] = useState('')
+  const [capacityByQueue, setCapacityByQueue] = useState<Record<string, CapacityState>>({})
+  const [intradayByQueue, setIntradayByQueue] = useState<Record<string, IntradayState>>({})
+  const [datasetVersion, setDatasetVersion] = useState(0)
   const [horizon, setHorizon] = useState<Horizon>(14)
   const [tourOpen, setTourOpen] = useState(false)
   // Decided during the first render, so the offer needs no timer and no state
@@ -94,9 +112,15 @@ export default function App() {
     setCsvErrors(errors)
     if (recs.length > 0) {
       forecastCache.current.clear()
+      setCapacityByQueue({})
+      setIntradayByQueue({})
+      setDatasetVersion(v => v + 1)
+      setForecast(null)
       setRecords(recs)
       setSourceLabel(label)
       setLoadError(null)
+      setProjectError(null)
+      setProjectStatus(null)
     } else {
       // Nothing usable came in: keep the current dataset and say so explicitly.
       setLoadError(
@@ -108,10 +132,12 @@ export default function App() {
   }
 
   const loadSample = () => {
+    const request = ++importSequence.current
     setLoadingSample(true)
     // Yield a frame so the loading state paints before generation blocks.
     setTimeout(() => {
       try {
+        if (request !== importSequence.current) return
         setData(generateSampleData(), [], 'Sample dataset (generated)')
       } catch (err) {
         setLoadError(`Sample data failed: ${errorMessage(err)}. Press Load sample data again.`)
@@ -122,15 +148,66 @@ export default function App() {
   }
 
   const loadCsv = (file: File) => {
+    const request = ++importSequence.current
     file
       .text()
       .then((text) => {
-        const { records: recs, errors } = parseCsv(text)
+        if (request !== importSequence.current) return
+        const { records: recs, errors, rejected } = parseCsv(text)
+        if (rejected) {
+          setCsvErrors(errors)
+          setLoadError(`"${file.name}" was rejected because it contains duplicate queue/timestamp rows. ${records ? `Still showing ${sourceLabel}.` : 'No dataset loaded.'}`)
+          return
+        }
         setData(recs, errors, file.name)
       })
       .catch(() => {
+        if (request !== importSequence.current) return
         setData([], [{ row: 1, message: 'could not read the file' }], file.name)
       })
+  }
+
+  const openProject = async (file: File) => {
+    const request = ++importSequence.current
+    setProjectError(null)
+    setProjectStatus(null)
+    try {
+      if (file.size > MAX_PROJECT_BYTES) throw new Error('Project exceeds the 64 MB file limit.')
+      const text = await file.text()
+      if (request !== importSequence.current) return
+      const project = parseProject(text)
+      // React batches this validated replacement; no partial project reaches a render.
+      forecastCache.current.clear()
+      setForecast(null)
+      setForecastError(null)
+      setRecords(project.records)
+      setSourceLabel(project.sourceLabel)
+      setQueueChoice(project.queue)
+      setHorizon(project.horizon)
+      setStaffing(project.staffing)
+      setCapacityByQueue(project.capacityByQueue)
+      setIntradayByQueue(project.intradayByQueue)
+      setDatasetVersion(v => v + 1)
+      setProjectName(project.name)
+      setCsvErrors([])
+      setLoadError(null)
+      setProjectStatus('Opened project: ' + project.name)
+    } catch (err) {
+      if (request === importSequence.current) setProjectError(errorMessage(err) + ' Current work was kept.')
+    }
+  }
+  const saveProject = () => {
+    if (!records) return
+    try {
+      const project: Project = { schema: 'wfm-project', version: 2, name: projectName, records, sourceLabel,
+        queue, horizon, staffing, capacityByQueue, intradayByQueue }
+      downloadTextFile(fileSlug(projectName) + '.json', serializeProject(project), 'application/json')
+      setProjectError(null)
+      setProjectStatus('Saved project: ' + projectName)
+    } catch (err) {
+      setProjectStatus(null)
+      setProjectError(errorMessage(err))
+    }
   }
 
   const hasData = records !== null && queue !== ''
@@ -159,7 +236,6 @@ export default function App() {
     <>
       <header className="app-header">
         <h1 className="app-title">WFM Forecast &amp; Staffing Workbench</h1>
-        <Tabs active={tab} onChange={setTab} />
         <div className="header-spacer" />
         {hasData && (
           <div className="queue-picker" data-tour="queue">
@@ -191,9 +267,11 @@ export default function App() {
           {showNudge && <TourNudge onStart={openTour} onDismiss={dismissNudge} />}
         </div>
         <ThemeToggle />
+        <Tabs active={tab} onChange={setTab} />
       </header>
 
       <main className="container">
+        <ProjectControls name={projectName} onNameChange={setProjectName} canSave={hasData} onSave={saveProject} onOpen={openProject} error={projectError} status={projectStatus} />
         <div hidden={tab !== 'data'} role="tabpanel" id="panel-data" aria-labelledby="tab-data">
           <DataTab
             records={records}
@@ -260,7 +338,7 @@ export default function App() {
           aria-labelledby="tab-staffing"
         >
           {hasData && forecast ? (
-            <StaffingTab forecast={forecast} queue={queue} horizon={horizon} theme={theme} />
+            <StaffingTab forecast={forecast} queue={queue} horizon={horizon} theme={theme} settings={staffing} onSettingsChange={setStaffing} />
           ) : hasData ? (
             computingCard
           ) : (
@@ -270,6 +348,15 @@ export default function App() {
               onGoData={() => setTab('data')}
             />
           )}
+        </div>
+        <div hidden={tab !== 'capacity'} role="tabpanel" id="panel-capacity" aria-labelledby="tab-capacity">
+          {hasData ? <CapacityTab key={datasetVersion + '|' + queue + '|' + horizon} queue={queue} forecast={forecast?.queue === queue && forecast.dailyForecast.length === horizon ? forecast : null} state={Object.prototype.hasOwnProperty.call(capacityByQueue, queue) ? capacityByQueue[queue] : emptyCapacityState()} theme={theme}
+            onChange={next => setCapacityByQueue(prev => ({ ...prev, [queue]: next }))} /> : <EmptyState title="No data for capacity planning yet" text="Load data, then compare 13 weeks of demand with your headcount and a proposed hiring class." onGoData={() => setTab('data')} />}
+        </div>
+        <div hidden={tab !== 'intraday'} role="tabpanel" id="panel-intraday" aria-labelledby="tab-intraday">
+          {hasData && forecast?.queue === queue && forecast.dailyForecast.length === horizon ? <IntradayTab key={datasetVersion + '|' + queue + '|' + horizon} forecast={forecast} queue={queue} scenario={staffing.a} theme={theme} active={tab === 'intraday'}
+            state={Object.hasOwn(intradayByQueue, queue) ? intradayByQueue[queue] : emptyIntradayState()}
+            onChange={next => setIntradayByQueue(prev => ({ ...prev, [queue]: next }))} /> : hasData ? computingCard : <EmptyState title="No data for intraday reforecast yet" text="Load data to compare observed contacts and remaining demand with interval staffing." onGoData={() => setTab('data')} />}
         </div>
       </main>
 

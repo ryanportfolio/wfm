@@ -4,6 +4,7 @@ import type { CsvError } from '../engine/csv'
 import { CSV_HEADER, csvTemplate } from '../engine/csv'
 import type { ForecastResult } from '../engine/forecastPipeline'
 import { toDailySeries } from '../engine/series'
+import { analyzeDataQuality } from '../engine/dataQuality'
 import type { ChartTheme } from './theme'
 import { DailyHistoryChart } from './charts/DailyHistoryChart'
 import { downloadTextFile } from './download'
@@ -45,6 +46,7 @@ export function DataTab({
   onCsvFile,
 }: DataTabProps) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const quality = useMemo(() => analyzeDataQuality(records ?? []), [records])
 
   const downloadTemplate = () => {
     downloadTextFile('wfm-template.csv', csvTemplate())
@@ -128,6 +130,7 @@ export function DataTab({
           <input
             ref={fileRef}
             type="file"
+            aria-label="CSV file"
             accept=".csv,text/csv"
             style={{ display: 'none' }}
             onChange={(e) => {
@@ -169,7 +172,7 @@ export function DataTab({
         <div className="card">
           <div className="card-title">
             <h2 className="error-text">CSV row errors ({fmtInt(csvErrors.length)})</h2>
-            <span className="card-subtitle">These rows were skipped.</span>
+            <span className="card-subtitle">{loadError ? (records ? 'The file was not loaded. Your existing data was kept.' : 'The file was not loaded. No dataset is loaded.') : 'These rows were skipped; valid rows were loaded.'}</span>
           </div>
           <div className="scroll">
             <table className="table">
@@ -199,6 +202,29 @@ export function DataTab({
 
       {records && summary && (
         <>
+          <div className="card">
+            <div className="card-title">
+              <h2>Data completeness</h2>
+              <span className="card-subtitle">All imported queues, within each queue's own date range.</span>
+            </div>
+            <div className="scroll">
+              <table className="table">
+                <thead><tr><th>Queue</th><th className="num">Missing dates</th><th className="num">Missing expected slots</th><th className="num">Explicit zero rows</th></tr></thead>
+                <tbody>{quality.map((q) => (
+                  <tr key={q.queue}><th scope="row">{q.queue}</th><td className="num">{fmtInt(q.missingDates.count)}</td><td className="num">{fmtInt(q.missingSlots.count)}</td><td className="num">{fmtInt(q.zeroRows)}</td></tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <p className="note">Missing dates have no rows. Missing expected slots are counted only on dates with rows. A slot is expected when it appears on at least two dates and more than half of the observed dates for that queue and weekday. Sparse history may leave gaps undetected.</p>
+            <p className="note">Gaps may be closures or missing data; confirm them against your operating calendar. Explicit zero rows are recorded observations, not missing rows. The forecast currently fills missing dates with zero totals, which can also affect its holiday closure assumption. These diagnostics do not fill missing slots or establish whether the queue was closed.</p>
+            {quality.filter((q) => q.missingDates.count || q.missingSlots.count).map((q) => (
+              <details key={q.queue}>
+                <summary>{q.queue}: gap examples (up to 5 per category)</summary>
+                {q.missingDates.count > 0 && <p className="note">Missing dates: {q.missingDates.samples.join(', ')}</p>}
+                {q.missingSlots.count > 0 && <p className="note">Missing expected slots: {q.missingSlots.samples.join(', ')}</p>}
+              </details>
+            ))}
+          </div>
           <div className="cards-row">
             <div className="card">
               <div className="metric-label">Date range</div>

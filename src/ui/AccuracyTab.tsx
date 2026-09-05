@@ -65,7 +65,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
     setRunError(null)
   }, [records])
 
-  const reports = results[queue]
+  const reports = Object.prototype.hasOwnProperty.call(results, queue) ? results[queue] : undefined
 
   const run = () => {
     const token = runToken.current

@@ -1,4 +1,5 @@
 import type { IntervalRecord } from './types'
+import { intervalKey } from './dataQuality'
 
 export interface CsvError {
   /** 1-based line number in the input text */
@@ -9,6 +10,8 @@ export interface CsvError {
 export interface CsvParseResult {
   records: IntervalRecord[]
   errors: CsvError[]
+  /** Duplicate valid keys reject the entire import, without choosing a winner. */
+  rejected: boolean
 }
 
 export const CSV_HEADER = 'timestamp,queue,offered,aht'
@@ -23,7 +26,7 @@ function daysInMonth(year: number, month: number): number {
   return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
 }
 
-function validTimestamp(value: string): boolean {
+export function validTimestamp(value: string): boolean {
   const m = TIMESTAMP_RE.exec(value)
   if (!m) return false
   const year = Number(m[1])
@@ -40,12 +43,14 @@ function validTimestamp(value: string): boolean {
 function parseNonNegativeNumber(value: string): number | null {
   if (value === '' || !/^-?\d+(\.\d+)?$/.test(value)) return null
   const n = Number(value)
-  return n >= 0 ? n : null
+  return Number.isFinite(n) && n >= 0 ? n : null
 }
 
 export function parseCsv(text: string): CsvParseResult {
   const records: IntervalRecord[] = []
   const errors: CsvError[] = []
+  const firstRows = new Map<string, number>()
+  let rejected = false
   // Excel saves "CSV UTF-8" with a byte-order mark; strip it so the header check passes.
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1)
   const lines = text.split(/\r\n|\r|\n/)
@@ -53,7 +58,7 @@ export function parseCsv(text: string): CsvParseResult {
   const headerLine = lines[0]?.trim() ?? ''
   if (headerLine.toLowerCase() !== CSV_HEADER) {
     errors.push({ row: 1, message: `header must be "${CSV_HEADER}", got "${headerLine}"` })
-    return { records, errors }
+    return { records, errors, rejected }
   }
 
   for (let i = 1; i < lines.length; i++) {
@@ -85,10 +90,19 @@ export function parseCsv(text: string): CsvParseResult {
       continue
     }
 
-    records.push({ ts, queue, offered, aht })
+    const record = { ts, queue, offered, aht }
+    const key = intervalKey(record)
+    const firstRow = firstRows.get(key)
+    if (firstRow !== undefined) {
+      rejected = true
+      errors.push({ row, message: `duplicate queue/timestamp for "${queue}" at ${ts}; first seen on row ${firstRow}. The entire file was rejected. Remove or resolve duplicate rows before importing.` })
+    } else {
+      firstRows.set(key, row)
+      records.push(record)
+    }
   }
 
-  return { records, errors }
+  return { records: rejected ? [] : records, errors, rejected }
 }
 
 export function serializeCsv(records: IntervalRecord[]): string {

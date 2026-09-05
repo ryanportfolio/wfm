@@ -267,3 +267,13 @@ describe('applyScenario', () => {
     expect(baseConfig).toEqual(configCopy)
   })
 })
+
+it('fixed projection rejects huge workloads and heads before recursion, preserving boundary service', () => {
+  for (const mode of ['erlangC', 'erlangA'] as const) {
+    expect(() => projectAtStaffing(mode, 60, 300, 1800, 20, 10000000000, 120)).toThrow('2000 on-contact')
+    expect(() => projectAtStaffing(mode, 6000.01, 300, 1800, 20, 100, 120)).toThrow('1000 Erlangs')
+    const r = projectAtStaffing(mode, 6000, 300, 1800, 20, 2000, 120)
+    expect(r.sl).toBeCloseTo(1, 10)
+    expect(r.occupancy).toBeCloseTo(.5, 10)
+  }
+})

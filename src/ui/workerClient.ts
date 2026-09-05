@@ -25,6 +25,36 @@ import type { ForecastOpts, ForecastResult } from '../engine/forecastPipeline'
 import type { Scenario, StaffingConfig, StaffingGridResult } from '../engine/staffing'
 import type { PendingEntry, WorkerRequest, WorkerResponse } from '../engine/workerProtocol'
 import { failAll, routeMessage, supersede } from '../engine/workerProtocol'
+import type { IntradayInputs, IntradayResult } from '../engine/intraday'
+
+/** Isolated, cancellable job: editing cannot queue obsolete Erlang solves behind each other. */
+export async function intradayInWorker(points: ForecastPoint[], inputs: IntradayInputs, config: StaffingConfig, signal: AbortSignal): Promise<IntradayResult> {
+  if (signal.aborted) throw new Error('Intraday calculation cancelled.')
+  if (!workerSupported()) {
+    const { calculateIntraday } = await import('../engine/intraday')
+    if (signal.aborted) throw new Error('Intraday calculation cancelled.')
+    return calculateIntraday(points, inputs, config)
+  }
+  return new Promise((resolve, reject) => {
+    const job = new Worker(new URL('../engine/worker.ts', import.meta.url), { type: 'module' })
+    const finish = (err?: Error, result?: IntradayResult) => {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', cancel)
+      job.terminate()
+      if (err) reject(err)
+      else resolve(result!)
+    }
+    const cancel = () => finish(new Error('Intraday calculation cancelled.'))
+    const timer = setTimeout(() => finish(new Error('Intraday calculation exceeded 10 seconds. Check inputs and supported workload limits, then retry.')), 10_000)
+    signal.addEventListener('abort', cancel, { once: true })
+    job.onerror = e => finish(new Error(e.message || 'Intraday worker failed.'))
+    job.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      if (e.data.kind === 'error') finish(new Error(e.data.message))
+      else if (e.data.kind === 'result') finish(undefined, e.data.result as IntradayResult)
+    }
+    job.postMessage({ id: 1, kind: 'intraday', points, inputs, config } satisfies WorkerRequest)
+  })
+}
 
 export { isSuperseded } from '../engine/workerProtocol'
 

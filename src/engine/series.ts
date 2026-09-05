@@ -37,7 +37,7 @@ export function dayNumFromIso(iso: string): number {
 
 export function isoFromDayNum(z: number): string {
   const { y, m, d } = civilFromDays(z)
-  return `${y}-${pad2(m)}-${pad2(d)}`
+  return `${y >= 0 ? String(y).padStart(4, '0') : y}-${pad2(m)}-${pad2(d)}`
 }
 
 export function addDays(iso: string, n: number): string {

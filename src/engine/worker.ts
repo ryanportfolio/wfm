@@ -12,6 +12,7 @@
 import type { WorkerRequest, WorkerResponse } from './workerProtocol'
 import { runBacktest, runForecast } from './forecastPipeline'
 import { applyScenario } from './staffing'
+import { calculateIntraday } from './intraday'
 import { errorMessage } from '../ui/errors'
 
 interface WorkerScope {
@@ -25,6 +26,10 @@ scope.onmessage = (e) => {
   const msg = e.data
   try {
     switch (msg.kind) {
+      case 'intraday': {
+        scope.postMessage({ id: msg.id, kind: 'result', result: calculateIntraday(msg.points, msg.inputs, msg.config) })
+        break
+      }
       case 'backtest': {
         const result = runBacktest(msg.records, msg.queue, msg.opts, (fold, totalFolds) =>
           scope.postMessage({ id: msg.id, kind: 'progress', done: fold, total: totalFolds }),

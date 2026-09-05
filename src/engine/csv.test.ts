@@ -15,6 +15,22 @@ describe('csv round-trip', () => {
 })
 
 describe('parseCsv', () => {
+  it.each([10, 20])('rejects the entire file for normalized duplicate demand %s', (offered) => {
+    const result = parseCsv(`${CSV_HEADER}\n2026-01-05T08:00, q ,10,300\n2026-01-05T08:00:00,q,${offered},400\n2026-01-05T08:30,q,5,300\n`)
+    expect(result.rejected).toBe(true)
+    expect(result.records).toEqual([])
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toMatchObject({ row: 3 })
+    expect(result.errors[0].message).toContain('first seen on row 2')
+  })
+
+  it('keeps separate queues at the same time and preserves intentional malformed-row skipping', () => {
+    const result = parseCsv(`${CSV_HEADER}\n2026-01-05T08:00,a,10,300\n2026-01-05T08:00,b,20,400\n2026-01-05T08:00,a,bad,300\n`)
+    expect(result.rejected).toBe(false)
+    expect(result.records.reduce((sum, r) => sum + r.offered, 0)).toBe(30)
+    expect(result.errors.map((e) => e.row)).toEqual([4])
+  })
+
   it('requires the exact header', () => {
     const result = parseCsv('time,queue,offered,aht\n2026-01-02T08:00:00,q,5,400\n')
     expect(result.records).toEqual([])
@@ -104,4 +120,13 @@ describe('calendar and AHT validation', () => {
     expect(result.errors[0].row).toBe(2)
     expect(result.records).toHaveLength(1)
   })
+})
+
+it.each(['offered', 'aht'])('rejects decimal overflow in %s and preserves ordinary decimals and zero', field => {
+  const huge = '9'.repeat(309)
+  const bad = field === 'offered' ? `${huge},300` : `1,${huge}`
+  const result = parseCsv(`timestamp,queue,offered,aht\n2026-01-05T08:00,q,${bad}\n2026-01-05T08:30,q,0,0\n2026-01-05T09:00,q,1.25,300.5`)
+  expect(result.errors).toHaveLength(1)
+  expect(result.errors[0].message).toContain(field)
+  expect(result.records.map(r => [r.offered, r.aht])).toEqual([[0, 0], [1.25, 300.5]])
 })

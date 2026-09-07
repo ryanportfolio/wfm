@@ -1,5 +1,7 @@
 # Codex Skill Compatibility
 
+Native Codex ownership is declared in `.agents/skill-modes.json`. Maintain `wow-loop` and `long-horizon` directly in `.agents/skills/`; their capability-gated classification remains unchanged. These workflows require fresh-context agents and report missing required evidence without claiming a pass.
+
 `.claude/skills/` remains Claude's source. An adapter exposes a workflow; it does not prove every runtime capability exists.
 
 - **Native**: direct mapping.

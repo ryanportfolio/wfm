@@ -12,6 +12,7 @@ This is the Codex boundary for repositories using the AI Operating System starte
 ## Capabilities
 
 - Inspect tools exposed in the current session before using subagents, browser control, connectors, or interactive input. Config flags alone are not proof.
+- Spawn subagents with fresh context (`fork_turns: "none"`) and a self-contained brief by default. Inherit conversation history only when the task specifically benefits from it. Independent reviewers always start fresh; report a capability gap if the exposed runtime cannot provide this.
 - Serial fallback is valid only when independence is not part of the deliverable. `impartial-review`, `advocate`, and `why` require fresh independent context; if unavailable, report the gap.
 - Claude `Workflow` programs are not Codex programs. Recreate their intent with exposed Codex agents or flag them blocked.
 - Keep critical Codex rules here rather than in project hooks, which require separate trust and can be disabled.
@@ -32,7 +33,7 @@ This is the Codex boundary for repositories using the AI Operating System starte
 
 ## Shared Assets
 
-- `.claude/skills/` is canonical; `.agents/skills/` contains Codex adapters. Treat `$ARGUMENTS` as invocation input.
+- Native Codex skills live in `.agents/skills/`, registered in `.agents/skill-modes.json`; maintain them directly. Other skills remain generated adapters to Claude sources. Treat `$ARGUMENTS` as invocation input.
 - Read relevant `.claude/reference/` material before unfamiliar work and `.agents/CODEX-SKILL-COMPATIBILITY.md` before adapted, gated, or dangerous skills.
 - After canonical skill changes run `node .claude/scripts/sync-codex-skills.mjs --write`.
 - Tool mapping: `.agents/codex-tools.md`.

@@ -13,6 +13,10 @@ Maintain this native Codex skill directly. Arena explores competing approaches; 
 supports human tuning. Neither is required. This workflow owns its resume state without
 nesting another orchestration skill.
 
+When recording review evidence or presenting before/after artifacts, read the packaged
+[evidence report](references/evidence-report.md) and retain this workflow's acceptance gates.
+Carry its applicable evidence requirements into critic briefs.
+
 ## 1. Preflight
 
 Inspect the artifact, project requirements, current edits, and exposed tools. Preserve
@@ -21,7 +25,7 @@ separate ports and build directories. Confirm the preview serves the intended ch
 
 Independent review requires separate agents. Spawn subagents with `fork_turns: "none"`
 and self-contained briefs by default. Critics always start fresh. Use native subagents,
-not new sidebar tasks. Keep model settings inherited unless the user directs otherwise.
+not new sidebar tasks. Honor explicit user model choices; otherwise inherit the configured model. Report an unavailable requested model rather than silently substituting it.
 If independent context or a required evidence tool is unavailable, record the affected
 check as unavailable and continue useful work without claiming that gate passed.
 
@@ -29,6 +33,22 @@ For visual work, read [visual review](references/visual-review.md), take one rea
 or render, and inspect it before dispatching review rounds. Establish named states and
 capture conditions, with fixed seeds where needed and tolerances for rendering variation.
 Interactive and animated work also needs a natural run.
+
+Browser rule, copied into every brief that renders or drives a page:
+- Launch headed Chrome on the real GPU through the repo's placed-Chrome launcher,
+  `launchPlacedChrome()` in `scripts/lib/launch-chrome.mjs`. A headless, minimized, or
+  software-rendered run is never evidence for GPU, WebGL, or animation claims. Static
+  media may render without it. Each session owns one browser; parallel or subagent
+  browser work starts its own isolated profile.
+- Drive: tie every capture to exactly one action on the right page. Find the app's page by
+  a marker in its DOM, such as a `data-*` root; zero hits means the target is unknown:
+  print each open page's URL and title, pick from that printout, and record which one.
+  Attach to Electron or Chromium apps with `--remote-debugging-port`. Screenshot before and
+  after each action that changes structure, and run one such action at a time. Locate
+  elements by accessible role, label, or `data-*` attribute; take screen coordinates only
+  from a screenshot of the current state. Element references go stale after navigation or
+  a DOM change, so look them up again. Keep a list of every process and profile the run
+  launches; teardown works from that list and touches nothing else.
 
 ## 2. Set the bar
 
@@ -67,7 +87,7 @@ progress. Select the next ready scope by blockers, severity, and dependencies. R
 never resets the budget or silently restarts the artifact.
 
 Default budget: 12 implementation-and-review rounds across the entire run, including
-initial attempts and repairs after final review. Reserve a round before dispatching its
+initial attempts, any competing candidate writers, and repairs after final review. Reserve a round before dispatching its
 writer. Interrupted or failed attempts still count; review-only passes do not. Track
 critic retries separately and change the evidence method after two consecutive identical
 review failures. Honor explicit user limits in place of the default. Exhaustion prevents
@@ -78,16 +98,16 @@ a raised budget. Explicit user limits on time or review work still apply.
 ## 4. Implement and review
 
 Use one implementation writer at a time. Its brief contains the target, current contract,
-relevant findings, allowed paths, dependencies, local checks, and applicable browser
-requirements. The writer inspects its own captures and runs local checks before returning
+relevant findings, allowed paths, dependencies, local checks, and the browser rule
+when it renders a page. The writer inspects its own captures and runs local checks before returning
 changed paths, evidence, and known limits. Stop writes before reviewing that artifact.
 
 Assign separate read-only experience and engineering critics. Adapt engineering checks
 to the artifact, such as export integrity for a document. Respect exposed concurrency;
 serialize browser control or performance measurements that share resources.
 
-Give critics the contract, references, baseline, artifact paths, permitted tools, and
-capture conditions. Exclude builder explanations and previous verdicts from initial
+Give critics the contract, references, baseline, artifact paths, permitted tools,
+capture conditions, and the browser rule. Exclude builder explanations and previous verdicts from initial
 assessment. Critics collect their own captures and run relevant checks. They can write
 evidence but cannot edit the deliverable or orchestrator state.
 

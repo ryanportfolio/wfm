@@ -1,42 +1,75 @@
 ---
-description: "Use when a session or task is wrapping up (\"wrap up\", \"that's everything\", \"done for today\"), when the user invokes /refine, or after any task with friction: calls wasted rediscovering a fact, a skill that misfired, a user correction."
+name: refine
+description: "Use for an explicit workflow-improvement review, turning the user's preferences into rules or a skill, or recurring task friction that may justify a narrow change to skills or project references."
 ---
 
-# refine: post-task harness pass
+# Improve the working process
 
-The harness (skills, reference, memory, kernel) is state you can edit. When a task ends, mine the trajectory for friction and apply the smallest evidence-backed edit that would have prevented it. Self-improvement means explicit, persisted, reversible edits, never vague intent.
+Inspect actual task events and the relevant current instruction before recommending a change.
+Separate stale facts, missing guidance, a poorly scoped trigger, tool/config defects, and
+failure to follow an existing rule. A correction is evidence to examine, not automatically
+a universal preference. If the rule already exists, avoid duplicating it.
 
-## Step 1: Mine the trajectory
+Look at consequential decisions, wasted tool calls, repeated failures, and backed-out actions.
+Run `node .claude/scripts/memory-audit.mjs` for the read-side view of reference entries,
+memory files, and skills: never-read files, dated entries older than six months, and retired
+lines old enough to prune are candidates to check, not verdicts.
+For each recurring problem, identify the smallest change that would have prevented it.
+Prefer an in-scope tool fix over documenting a workaround. A description change needs
+evidence that the trigger is wrong; an isolated misread can require no edit.
 
-Re-read this session's actual events, not your summary of them. List every friction event under these classes:
+Only the user's own words count as evidence of a preference. Before reading deeply, grep
+the user's turns case-insensitively for phrases that set or repeat a standing rule:
+"from now on", "going forward", "every time", "always", "never", "I already told you",
+"why do you keep". The grep only picks where to read first; a standing rule phrased any
+other way still counts.
+Decide each candidate by this table:
 
-| Class | Symptom in trajectory | Edit surface |
-|---|---|---|
-| Rediscovery | Tool calls burned re-learning a fact no file records | The repo's durable notes: `.claude/reference/` via recall where both exist, else the always-loaded instruction file |
-| Skill misfire | A skill fired and the user backed you out, or the right skill never fired | That skill's `description:` line |
-| Correction | User corrected your process | The always-loaded instruction file (CLAUDE.md, AGENTS.md, equivalent), only if no rule exists |
-| Stale state | A reference or memory entry proved wrong during the task | Replace or delete the entry |
+| Evidence in the user's turns | Action |
+|---|---|
+| The user said it applies from now on, or asked to save it | Save it; one occurrence is enough |
+| The user let the same agent choice pass several times without comment | Suggest it to the user; do not save |
+| Only the agent did it | Nothing |
+| The user said opposite things | Ask |
+| The instruction was about one task | Leave it with that task |
 
-Mine through three lenses, in order, so one reading style doesn't hide a friction class: judgment (wrong calls, missed checks, corrections), tooling (calls wasted on work a script, permission, or recorded fact would have skipped), divergent (what would a session that took a different approach have avoided; which friction repeats across sessions, not just here).
+Past sessions: this project's folder under `~/.claude/projects/<munged-path>/` plus its
+`memory/MEMORY.md`; never open another project's transcripts. Saved rules and reports
+contain the rule itself only: no quoted chat, no paths to session files, no credentials or
+tokens.
 
-Read the surface before editing it. This skill installs globally, so the repo in front of you may have none of the files named above.
+A preference the user asked to save needs only the evidence table above. To fix a failure,
+pass three checks before editing; failing any means zero changes is the correct outcome.
+The failure is attributable to an instruction, tool, or configuration, not to the model
+reasoning wrong on correct inputs with working tools. The causal link is stated from the
+evidence: which behavior caused the failure and how the change removes it. The rule or
+parameter being changed was active in the failure; changing one the evidence shows was
+never exercised does nothing. Before attributing a failure to instructions, check what the
+agent saw and remembered: filtered, clamped, or truncated tool output, summarized context,
+or a stale observation explains many "did not follow the rule" events, and added text does
+not fix those.
 
-Completion bar: every user correction and every backed-out action in the trajectory is either listed as friction or explicitly ruled out with a reason.
+For a review request, report evidence and proposed changes. For an instruction to improve
+the workflow, make reversible changes within the named scope. Auto-selection at task end
+does not authorize global edits or publication. Read before editing; preserve unrelated
+work and a backup or diff for non-Git files. Route each confirmed change to one home: a
+cross-project personal rule to `~/.claude/CLAUDE.md`, a project-wide rule to the project
+kernel, a quirk to `.claude/reference/pitfalls.md` and other durable project facts to their
+reference file (both through recall), a repeatable procedure to a skill, or nowhere. Keep
+session events and discoverable code facts out.
 
-## Step 2: Smallest edit per friction
+For skill authoring or installation, use addskill when available; Codex authoring uses
+built-in skill-creator. A standalone refinement can use the local evaluation resource
+without requiring the repository or another installed skill.
 
-- One friction → one smallest edit → one commit. The commit message quotes the trajectory evidence. The commit is the rollback snapshot. Stage only the harness files that edit touched; the task's own in-flight work never rides along.
-- If a code or config change would remove the friction outright, propose that instead of documenting the workaround. A note telling the next session to pass a flag is worse than the flag being unnecessary.
-- Structural enforcement check, before any prose edit lands: a rule a lint, hook, script, or permission entry can enforce beats prose stating it. Prefer the structural encoding; if it's too big for this pass, note it as the follow-up instead of writing the prose rule.
-- A skill that misfired is a description bug, not a one-off judgment error. Judgment executes descriptions; fix the trigger surface. Where writing-skills exists it governs the edit and its test loop applies. Without it, still verify: hand a fresh subagent the descriptions plus the scenario that misfired, confirm it now routes correctly, and confirm a neighbouring scenario does not over-fire.
-- Where recall exists, rediscoveries route through it and its format and commit rules apply.
-- A correction whose rule already exists → no edit. Attention failure is not a documentation gap; duplicating the rule weakens the kernel.
-- Edits landing outside a git repo (global skills, memory files) have no commit standing behind them. Name what you changed and where, so it can be reversed by hand.
-- Zero edits is a valid outcome. Say so and stop.
+Use static validation for straightforward wording/metadata fixes. For material changes to
+routing, decisions, verification, or retained working behavior, use the local
+[evaluation record](references/evaluation.md) before trials. Compare the baseline and
+candidate on targeted and neighboring scenarios in fresh context when available. This skill
+requests bounded validation agents only when useful. Judge observable actions, not copied
+headings. Separate local acceptance, later observed use, and demonstrated improvement;
+pending later use does not block a local edit.
 
-## Red flags
-
-- "One-off judgment error" about a skill misfire → it is a description bug; fix it.
-- Several frictions bundled into one commit → rollback granularity lost.
-- New kernel rule for something area-specific → reference file instead. Repo has no reference file → create one or accept the kernel line, but do not stall.
-- An edit without quoted evidence → not evidence-backed; don't make it.
+Report changed files, evidence, verification, and limits. Zero changes is valid. Commit,
+push, cross-project synchronization, and another provider's paid review need existing or
+explicit authorization; there is no mandatory one-friction/one-commit rule.

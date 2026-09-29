@@ -1,6 +1,7 @@
 ---
 name: adopt-repo
 description: "Mirror an existing external repo privately under the user's account and overlay the firmware: clone upstream, strip template-only files, privacy-sweep, run init-project. Use on /adopt-repo <url> or 'pull this repo into our firmware'."
+disable-model-invocation: true
 ---
 
 # adopt-repo: overlay the firmware onto an existing repo
@@ -18,7 +19,7 @@ Ask only for what the invocation left out: upstream URL, target repo name (defau
 3. **Overlay the firmware.** Shallow-clone the template (also to a short path). Read `TEMPLATE_ONLY_PATHS` from `bootstrap/new-claude-project.sh` in that clone and strip those paths plus the template `README.md` and any `.tmp*` directories; do not keep a private copy of the list, the script is the source of truth. Copy the rest over with these collision rules: the adopted repo's own files always win (`README.md`, manifests, configs); `.gitignore` is merged by appending the template's entries under a `# Harness` comment; report any other collision instead of resolving it silently.
 4. **Privacy sweep before committing or publishing.** The overlay may travel to reviewers or clients. Grep it for email addresses, personal names, client or project identifiers, and key/secret/token patterns; exclude generic prose hits. Anything real stays out and gets reported.
 5. **Commit the overlay locally** as its own commit (subject notes the template and that template-only files were stripped). Honor the adopted repo's commit convention. Do not publish until collision resolution, privacy checks, configuration, and preservation checks below complete.
-6. **Run the `init-project` skill.** It fills CLAUDE.md's FILL IN sections from the detected stack, seeds `.claude/reference/`, applies the skill profile, syncs Codex adapters, and wires the `starter` remote.
+6. **Run the `init-project` skill.** It fills CLAUDE.md's FILL IN sections from the detected stack, seeds `.claude/reference/`, applies the skill profile, checks Codex skill registration, and wires the `starter` remote.
 7. **Verify and publish within authorization.** Check configuration placeholders and compare against the recorded upstream commit. Original files remain byte-identical except the intentional `.gitignore` union and any explicitly approved collision resolution. Inspect those exceptions separately: retain all upstream ignore rules and record additions. Check the actual added-file inventory rather than assuming counts add across collisions. After all checks pass, create the target repo with the confirmed visibility, set `origin`, and push the preserved history plus overlay/configuration commits. Verify remote identity and visibility.
 
 ## Hard rules

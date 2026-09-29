@@ -34,6 +34,10 @@
     "perf-loop": "native",
     "session-hub": "native",
     "showpiece": "native",
-    "writing": "native"
+    "writing": "native",
+    "compact-review": "disabled",
+    "long-horizon-swarm": "disabled",
+    "external-review": "native",
+    "opus-fullreview": "native"
   }
 }

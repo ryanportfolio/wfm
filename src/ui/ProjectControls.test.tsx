@@ -14,7 +14,7 @@ beforeAll(() => {
 })
 afterEach(() => { cleanup(); vi.clearAllMocks(); window.history.replaceState(null, '', '/') })
 function project(name = 'First project', volume = 42): Project {
-  return { schema: 'wfm-project', version: 2, intradayByQueue: {}, name, records: [{ ts: '2026-01-05T08:00', queue: 'voice', offered: volume, aht: 300 }],
+  return { schema: 'wfm-project', version: 3, intradayByQueue: {}, name, records: [{ ts: '2026-01-05T08:00', queue: 'voice', offered: volume, aht: 300 }],
     sourceLabel: `${name}.csv`, queue: 'voice', horizon: 7, staffing: initialStaffing(''), capacityByQueue: { voice: emptyCapacityState() } }
 }
 function open(text: string | Promise<string>, size = 100) {

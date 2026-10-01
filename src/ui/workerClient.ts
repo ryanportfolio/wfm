@@ -26,6 +26,7 @@ import type { Scenario, StaffingConfig, StaffingGridResult } from '../engine/sta
 import type { PendingEntry, WorkerRequest, WorkerResponse } from '../engine/workerProtocol'
 import { failAll, routeMessage, supersede } from '../engine/workerProtocol'
 import type { IntradayInputs, IntradayResult } from '../engine/intraday'
+import type { HistorySeed } from '../engine/capacitySeed'
 
 /** Isolated, cancellable job: editing cannot queue obsolete Erlang solves behind each other. */
 export async function intradayInWorker(points: ForecastPoint[], inputs: IntradayInputs, config: StaffingConfig, signal: AbortSignal): Promise<IntradayResult> {
@@ -122,6 +123,21 @@ export async function forecastInWorker(
     return runForecast(records, queue, opts)
   }
   return post<ForecastResult>({ kind: 'forecast', records, queue, opts }).promise
+}
+
+/** Capacity history seed: cleans the queue's history and averages same-ISO-week intervals. Only that queue's records cross to the worker. */
+export async function historySeedInWorker(
+  records: IntervalRecord[],
+  queue: string,
+  planStart: string,
+  weeklyGrowth: number,
+): Promise<HistorySeed> {
+  const queueRecords = records.filter(r => r.queue === queue)
+  if (!workerSupported()) {
+    const { buildHistorySeed } = await import('../engine/capacitySeed')
+    return buildHistorySeed(queueRecords, queue, planStart, weeklyGrowth)
+  }
+  return post<HistorySeed>({ kind: 'historySeed', records: queueRecords, queue, planStart, weeklyGrowth }).promise
 }
 
 export type StaffingSession = (

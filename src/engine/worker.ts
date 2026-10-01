@@ -1,6 +1,6 @@
 /**
- * Dedicated compute worker: runs the backtest, forecast, and staffing-grid
- * engines off the main thread so the UI stays interactive. The client
+ * Dedicated compute worker: runs the backtest, forecast, capacity history seed
+ * and staffing-grid engines off the main thread so the UI stays interactive. The client
  * (src/ui/workerClient.ts) spawns it with
  * `new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })`,
  * which Vite bundles into its own chunk that also works under base './'.
@@ -13,6 +13,7 @@ import type { WorkerRequest, WorkerResponse } from './workerProtocol'
 import { runBacktest, runForecast } from './forecastPipeline'
 import { applyScenario } from './staffing'
 import { calculateIntraday } from './intraday'
+import { buildHistorySeed } from './capacitySeed'
 import { errorMessage } from '../ui/errors'
 
 interface WorkerScope {
@@ -40,6 +41,10 @@ scope.onmessage = (e) => {
       case 'forecast': {
         const result = runForecast(msg.records, msg.queue, msg.opts)
         scope.postMessage({ id: msg.id, kind: 'result', result })
+        break
+      }
+      case 'historySeed': {
+        scope.postMessage({ id: msg.id, kind: 'result', result: buildHistorySeed(msg.records, msg.queue, msg.planStart, msg.weeklyGrowth) })
         break
       }
       case 'staffing': {

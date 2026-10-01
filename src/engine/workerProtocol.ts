@@ -19,6 +19,7 @@ export type WorkerRequest =
   | { id: number; kind: 'intraday'; points: ForecastPoint[]; inputs: IntradayInputs; config: StaffingConfig }
   | { id: number; kind: 'backtest'; records: IntervalRecord[]; queue: string; opts: BacktestOpts }
   | { id: number; kind: 'forecast'; records: IntervalRecord[]; queue: string; opts: ForecastOpts }
+  | { id: number; kind: 'historySeed'; records: IntervalRecord[]; queue: string; planStart: string; weeklyGrowth: number }
   | {
       id: number
       kind: 'staffing'

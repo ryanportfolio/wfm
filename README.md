@@ -67,6 +67,12 @@ Save before closing the page. Loading replacement CSV or sample data clears capa
 
 ![Staffing tab, dark theme](docs/screenshots/staffing-dark.png)
 
+## Real data: Halifax 311
+
+The same backtest on real call volumes: 2017-01-01 to 2023-05-22, half-hourly, from the Halifax Regional Municipality 311 contact centre. Later data is not used: the source double-counts agent calls from 2023-05-23 and shifts its hours from 2024-07-17. Demand is answered plus abandoned calls; AHT is talk time only. "Load Halifax 311 (real data)" on the Data tab loads it. Daily WAPE over 8 folds x 28 days: DHR 17.3%, ensemble 18.1%, equal-weight blend 18.6%. The engine's holiday calendar is US federal, so Halifax closures are forecast as open days; without the 3 zero-call test days, ensemble daily WAPE is 17.4%. Derivation, caveats and the full scorecard: [docs/backtest-halifax.md](docs/backtest-halifax.md).
+
+Contains information licenced under the Open Government Licence—Halifax. The CSV is modified from HRM's [311 Call Volumes](https://data-hrm.hub.arcgis.com/datasets/HRM::311-call-volumes/about) dataset under the [Open Government Licence - Halifax](https://data-hrm.hub.arcgis.com/pages/open-data-licence); Halifax Regional Municipality does not endorse this project.
+
 ## Why these methods
 
 Research notes with sources are in [docs/research.md](docs/research.md): Taylor 2008 on which classical methods win at which horizons, the forecast-combination evidence, Erlang A vs C, pooling math, and the accuracy-metric tradeoffs. The design rationale (stack, data model, algorithm spec) is in [docs/design.md](docs/design.md).

@@ -11,3 +11,7 @@
 .claude/** linguist-vendored
 .agents/** linguist-vendored
 .codex/** linguist-vendored
+
+# Derived dataset written by scripts/fetch-halifax-311.mjs with LF endings. Keep it
+# byte-identical to the script output on every checkout, and collapse it in diffs.
+public/data/*.csv text eol=lf linguist-generated

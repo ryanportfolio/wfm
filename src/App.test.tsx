@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import App from './App'
 
@@ -148,4 +148,21 @@ it('first rejected upload says no dataset is loaded', async () => {
   fireEvent.change(screen.getByLabelText('CSV file'), { target: { files: [{ name: 'duplicate.csv', text: () => Promise.resolve('timestamp,queue,offered,aht\n2026-01-05T08:00,q,10,300\n2026-01-05T08:00:00,q,20,300') }] } })
   expect(await screen.findByText('The file was not loaded. No dataset is loaded.')).toBeTruthy()
   expect(screen.queryByText(/Your existing data was kept/)).toBeNull()
+})
+
+it('loads the bundled Halifax 311 CSV through the CSV parser and shows the credit line', async () => {
+  const csv = 'timestamp,queue,offered,aht\n2024-07-16T08:00,halifax-311,12,240.5\n2024-07-16T08:30,halifax-311,0,0\n'
+  const fetchMock = vi.fn(() => Promise.resolve({ ok: true, text: () => Promise.resolve(csv) }))
+  vi.stubGlobal('fetch', fetchMock)
+  try {
+    render(<App />)
+    expect(screen.getByText(/Contains information licenced under the/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Load Halifax 311 (real data)' }))
+    await screen.findByText('Loaded: Halifax 311 call volumes (real data)')
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toMatch(/data\/halifax-311\.csv$/)
+    expect([...(screen.getByLabelText('Queue') as HTMLSelectElement).options].map((o) => o.value)).toEqual(['halifax-311'])
+    expect(screen.getByText('Total contacts (halifax-311)').nextElementSibling?.textContent).toBe('12')
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })

@@ -15,6 +15,7 @@ interface DataTabProps {
   records: IntervalRecord[] | null
   csvErrors: CsvError[]
   loadingSample: boolean
+  loadingHalifax: boolean
   sourceLabel: string
   loadError: string | null
   queues: string[]
@@ -22,6 +23,7 @@ interface DataTabProps {
   forecast: ForecastResult | null
   theme: ChartTheme
   onLoadSample: () => void
+  onLoadHalifax: () => void
   onCsvFile: (file: File) => void
 }
 
@@ -36,6 +38,7 @@ export function DataTab({
   records,
   csvErrors,
   loadingSample,
+  loadingHalifax,
   sourceLabel,
   loadError,
   queues,
@@ -43,6 +46,7 @@ export function DataTab({
   forecast,
   theme,
   onLoadSample,
+  onLoadHalifax,
   onCsvFile,
 }: DataTabProps) {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -121,6 +125,15 @@ export function DataTab({
               'Load sample data'
             )}
           </button>
+          <button type="button" className="btn" disabled={loadingHalifax} onClick={onLoadHalifax}>
+            {loadingHalifax ? (
+              <>
+                <span className="spinner" /> Loading Halifax 311...
+              </>
+            ) : (
+              'Load Halifax 311 (real data)'
+            )}
+          </button>
           <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
             Upload CSV
           </button>
@@ -150,6 +163,15 @@ export function DataTab({
           Sample data: a generated 2-year, 3-queue public-sector contact center with Monday peaks,
           post-holiday spikes, month-start benefit bumps, twin intraday peaks, and injected outages
           for cleaning.
+        </p>
+        <p className="note">
+          Halifax 311: agent-queue calls (answered plus abandoned) and talk time per half hour,
+          January 2017 to May 2023, derived from Halifax Regional Municipality's{' '}
+          <a href="https://data-hrm.hub.arcgis.com/datasets/HRM::311-call-volumes/about">311 Call Volumes</a>{' '}
+          (<a href="https://github.com/ryanportfolio/wfm/blob/main/docs/backtest-halifax.md">how it was derived</a>).
+          Contains information licenced under the{' '}
+          <a href="https://data-hrm.hub.arcgis.com/pages/open-data-licence">Open Government Licence—Halifax</a>.
+          Not endorsed by Halifax Regional Municipality.
         </p>
         <p className="note" style={{ marginBottom: 4 }}>
           CSV template:

@@ -220,7 +220,7 @@ export default function App() {
   const saveProject = () => {
     if (!records) return
     try {
-      const project: Project = { schema: 'wfm-project', version: 2, name: projectName, records, sourceLabel,
+      const project: Project = { schema: 'wfm-project', version: 3, name: projectName, records, sourceLabel,
         queue, horizon, staffing, capacityByQueue, intradayByQueue }
       downloadTextFile(fileSlug(projectName) + '.json', serializeProject(project), 'application/json')
       setProjectError(null)
@@ -373,8 +373,8 @@ export default function App() {
           )}
         </div>
         <div hidden={tab !== 'capacity'} role="tabpanel" id="panel-capacity" aria-labelledby="tab-capacity">
-          {hasData ? <CapacityTab key={datasetVersion + '|' + queue + '|' + horizon} queue={queue} forecast={forecast?.queue === queue && forecast.dailyForecast.length === horizon ? forecast : null} state={Object.prototype.hasOwnProperty.call(capacityByQueue, queue) ? capacityByQueue[queue] : emptyCapacityState()} theme={theme}
-            onChange={next => setCapacityByQueue(prev => ({ ...prev, [queue]: next }))} /> : <EmptyState title="No data for capacity planning yet" text="Load data, then compare 13 weeks of demand with your headcount and a proposed hiring class." onGoData={() => setTab('data')} />}
+          {hasData ? <CapacityTab key={datasetVersion + '|' + queue + '|' + horizon} queue={queue} records={records} forecast={forecast?.queue === queue && forecast.dailyForecast.length === horizon ? forecast : null} state={Object.prototype.hasOwnProperty.call(capacityByQueue, queue) ? capacityByQueue[queue] : emptyCapacityState()} theme={theme}
+            onChange={next => setCapacityByQueue(prev => ({ ...prev, [queue]: next }))} /> : <EmptyState title="No data for capacity planning yet" text="Load data, then compare 13 weeks of demand with your headcount and proposed hiring classes." onGoData={() => setTab('data')} />}
         </div>
         <div hidden={tab !== 'intraday'} role="tabpanel" id="panel-intraday" aria-labelledby="tab-intraday">
           {hasData && forecast?.queue === queue && forecast.dailyForecast.length === horizon ? <IntradayTab key={datasetVersion + '|' + queue + '|' + horizon} forecast={forecast} queue={queue} scenario={staffing.a} theme={theme} active={tab === 'intraday'}

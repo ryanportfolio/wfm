@@ -107,15 +107,19 @@ describe('README capacity example', () => {
     const [heads, shrinkage, hours, demandFrom, demandTo, riseWeek, classSize, startWeek] =
       quoted.slice(0, 8).map(Number)
     const [trainingWeeks, rampWeeks] = quoted.slice(8).map((w) => WORD_NUMBERS[w] ?? Number(w))
-    const { inputs, demand } = exampleCapacityState()
+    const { inputs, demand, classes } = exampleCapacityState()
     expect(Number(inputs.startingHeadcount)).toBe(heads)
     expect(Number(inputs.shrinkagePct)).toBe(shrinkage)
     expect(Number(inputs.paidHoursPerWeek)).toBe(hours)
     expect(demand.map(Number)).toEqual(demand.map((_, i) => (i + 1 < riseWeek ? demandFrom : demandTo)))
-    expect(Number(inputs.classSize)).toBe(classSize)
-    expect(Number(inputs.startWeek)).toBe(startWeek)
-    expect(Number(inputs.trainingWeeks)).toBe(trainingWeeks)
-    expect(Number(inputs.rampWeeks)).toBe(rampWeeks)
+    // "A class ... trains ... then ramps": exactly one class, no nesting.
+    expect(classes).toHaveLength(1)
+    const [hire] = classes
+    expect(Number(hire.size)).toBe(classSize)
+    expect(Number(hire.startWeek)).toBe(startWeek)
+    expect(Number(hire.trainingWeeks)).toBe(trainingWeeks)
+    expect(Number(hire.nestingWeeks)).toBe(0)
+    expect(Number(hire.rampWeeks)).toBe(rampWeeks)
   })
 
   it('quotes the baseline shortage week and full proposal coverage', () => {

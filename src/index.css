@@ -542,7 +542,8 @@ input[type="checkbox"] {
   white-space: nowrap;
 }
 
-.table tbody tr:last-child td {
+.table tbody tr:last-child td,
+.table tbody tr:last-child th {
   border-bottom: none;
 }
 
@@ -583,7 +584,8 @@ input[type="checkbox"] {
 .intraday-controls { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
 .intraday-controls label { display: flex; flex-direction: column; gap: 6px; }
 
-.scroll .table th {
+/* Column headers only: body row headers scroll with their rows. */
+.scroll .table thead th {
   position: sticky;
   top: 0;
   background: var(--surface);
@@ -1244,15 +1246,36 @@ input[type="checkbox"] {
 .capacity-input-grid input { width: 100%; }
 .capacity-input-grid .error-text { display: block; font-size: 14px; }
 .capacity-panel input[aria-invalid="true"] { border-color: var(--bad); }
-.capacity-table { min-width: 1080px; }
+.capacity-table { min-width: 1300px; }
 .capacity-table .num-input { width: 130px; }
 .capacity-table small { display: block; }
 .capacity-panel .scroll { max-width: 100%; }
 .capacity-seed-notes { margin-top: 16px; }
 .capacity-seed-notes summary { cursor: pointer; color: var(--text-muted); }
+.capacity-history-seed { border: 1px solid var(--border); border-radius: var(--radius-input); margin: 16px 0 0; padding: 12px 16px 16px; min-width: 0; }
+.capacity-history-seed legend { font-weight: 600; padding: 0 6px; }
+.capacity-history-inputs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+.capacity-history-inputs > div { display: flex; flex-direction: column; gap: 6px; }
+.capacity-history-inputs .num-input { width: 180px; }
+.capacity-history-inputs .error-text { font-size: 14px; }
+.capacity-class-actions { margin-bottom: 12px; }
+.capacity-class-actions .note { margin: 0; }
+.capacity-class-table .num-input { width: 104px; }
+/* Row headers follow the zebra and hover washes of their cells. */
+.capacity-panel .table tbody tr:nth-child(even) th { background: var(--row-alt); }
+.capacity-panel .table tbody tr:hover th { background: var(--accent-soft); }
+.capacity-class-table small { display: block; max-width: 120px; white-space: normal; }
+.capacity-source small, .capacity-review { display: block; white-space: normal; max-width: 240px; }
+.capacity-review { color: var(--bad); font-weight: 600; }
+.capacity-phases { white-space: normal; min-width: 200px; }
+.capacity-sensitivity { min-width: 1280px; }
+.capacity-sensitivity thead th { white-space: normal; vertical-align: bottom; min-width: 110px; }
+/* Contains the visually hidden column label so it cannot widen the page past the scroller. */
+.capacity-panel .table-wrap { position: relative; }
 @media (max-width: 620px) {
   .capacity-summary { grid-template-columns: minmax(0, 1fr); }
   .capacity-input-grid label { min-height: 0; }
+  .capacity-marker-label { display: none; }
 }
 .project-controls { margin-bottom: 1rem; }
 .project-controls #project-name { width: min(100%, 240px); }

@@ -255,14 +255,31 @@ export function StaffingTab({ forecast, queue, horizon, theme, settings, onSetti
     window.history.replaceState(null, '', debouncedHash ? `${base}#${debouncedHash}` : base)
   }, [debouncedHash])
 
+  // The "Copied" reset timer must not outlive the tab; a late clipboard
+  // resolution after unmount schedules nothing.
+  const copiedTimer = useRef<number | null>(null)
+  const unmounted = useRef(false)
+  useEffect(() => {
+    unmounted.current = false
+    return () => {
+      unmounted.current = true
+      if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
+      copiedTimer.current = null
+    }
+  }, [])
   const clipboardOk = typeof navigator !== 'undefined' && !!navigator.clipboard
   const copyLink = () => {
     const { origin, pathname, search } = window.location
     const url = `${origin}${pathname}${search}${urlHash ? `#${urlHash}` : ''}`
     navigator.clipboard.writeText(url).then(
       () => {
+        if (unmounted.current) return
         setCopied(true)
-        window.setTimeout(() => setCopied(false), 1500)
+        if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
+        copiedTimer.current = window.setTimeout(() => {
+          copiedTimer.current = null
+          setCopied(false)
+        }, 1500)
       },
       () => {},
     )

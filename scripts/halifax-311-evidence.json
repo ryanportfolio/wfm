@@ -1,0 +1,83 @@
+{
+  "source": {
+    "rows": 148821,
+    "lastDate": "2026-09-26",
+    "utc07Rows": 98061,
+    "utc08Rows": 50760
+  },
+  "timestamps2023": {
+    "weekdayMonths": 12,
+    "monthsOpeningAt0800": 12,
+    "handledAt0700": 0
+  },
+  "hourShift": {
+    "preMeanHourMin": 11.023584905660377,
+    "preMeanHourMax": 16.514880952380953,
+    "shiftDayFirstHandled": "14:30",
+    "shiftDayMeanHour": 19.707541191381495,
+    "shiftDayRows": 29,
+    "openingDaylight": "15:00",
+    "openingStandard": "16:00"
+  },
+  "doubling": {
+    "preOddMin": 0.2923076923076923,
+    "preOddMedian": 0.5409836065573771,
+    "preOddMax": 0.7368421052631579,
+    "preDays": 2324,
+    "windowOpenDays": 407,
+    "doubledDays": 395,
+    "doubledOddMin": 0,
+    "doubledOddMax": 0.07547169811320754,
+    "singleDays": 12,
+    "singleOddMin": 0.45901639344262296,
+    "singleOddMax": 0.6470588235294118,
+    "singleVolumeRatioMin": 0.3515881708652793,
+    "singleVolumeRatioMax": 0.5721925133689839,
+    "windowRows": 17454,
+    "offeredEqualsDoubledRows": 6024,
+    "january2024HalvedPerDay": 590.4032258064516,
+    "january2023PerDay": 560.516129032258,
+    "monthsDropped": 40
+  },
+  "reconciliation": {
+    "rows": 98354,
+    "exactRows": 44579,
+    "withinOneRows": 68658,
+    "offeredSmallerRows": 6464,
+    "offered": 2533211,
+    "ivr": 734409,
+    "agent": 1699035,
+    "gap": 99767,
+    "dayGapP05": 0.01718213058419244,
+    "dayGapP50": 0.03755458515283843,
+    "dayGapP95": 0.09771986970684039,
+    "negativeGapDays": 0,
+    "openGap": 76175,
+    "openIvr": 545556,
+    "openAgent": 1659683,
+    "closedGap": 23592,
+    "closedIvr": 188853,
+    "closedAgent": 39352
+  },
+  "talk": {
+    "rowsWithHandled": 93334,
+    "averageIsFloorRows": 93334,
+    "noTalkTimeRows": 709
+  },
+  "omitted": {
+    "zeroOfferedRows": 294,
+    "rowsPerDayP05": 37,
+    "rowsPerDayP95": 47,
+    "omittedSlots": 13630,
+    "nightOmittedSlots": 13502,
+    "nightPresentMeanCalls": 0.6285360998853972,
+    "nightPresentNoneShare": 0.6970866759153146,
+    "nightCallShare": 0.012266374736247341,
+    "outageDayRows": [
+      19
+    ],
+    "daytimeGapDates": 9,
+    "daytimeGapMaxSlots": 1,
+    "daytimeGapDatesWeekendOrClosed": 9
+  }
+}

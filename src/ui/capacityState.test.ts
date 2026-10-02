@@ -39,6 +39,15 @@ describe('capacity draft and forecast conversion', () => {
     state.inputs.paidHoursPerWeek = '0'
     expect(() => seedCapacityState(state, grid, [])).toThrow(/greater than 0/)
   })
+  it('derives a 30-minute interval when seeded Mondays lack a half-hour slot', () => {
+    const records: IntervalRecord[] = []
+    for (let d = '2025-01-06'; d <= '2025-03-16'; d = addDays(d, 1)) {
+      for (const t of ['08:00', '08:30', '09:00']) if (!(t === '08:30' && new Date(`${d}T00:00Z`).getUTCDay() === 1)) records.push({ ts: `${d}T${t}`, queue: 'voice', offered: 20, aht: 300 })
+    }
+    const seed = buildHistorySeed(records, 'voice', '2025-03-17', 0)
+    expect(seed.intervalForecast.slice(0, 2).map(p => p.ts)).toEqual(['2025-03-17T08:00:00', '2025-03-17T09:00:00'])
+    expect(capacitySeedStaffing('voice', seed.intervalForecast).config.intervalSec).toBe(1800)
+  })
   it('seeds every plan week from 15-minute history with derived interval length and labels fallback weeks', () => {
     const records: IntervalRecord[] = []
     for (let d = '2025-01-06'; d <= '2025-03-16'; d = addDays(d, 1)) for (const t of ['08:00', '08:15', '08:30', '08:45']) records.push({ ts: `${d}T${t}`, queue: 'voice chat', offered: 20, aht: 600 })

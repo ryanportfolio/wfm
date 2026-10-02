@@ -118,6 +118,24 @@ describe('buildHistorySeed', () => {
     expect(seed.intervalForecast.filter(p => p.ts.slice(0, 10) === '2025-01-22')).toEqual([{ ts: '2025-01-22T08:00:00', offered: 212 / 2, aht: 200 }])
   })
 
+  it('gives a cleaned interval that gained volume the cell AHT from history', () => {
+    // A zero-volume Monday is an outlier its cell median replaces; its recorded AHT of 0 is not used as workload.
+    const varied = (date: string) => ({ offered: 100 + 2 * (isoWeekOf(date).isoWeek % 3), aht: 300 })
+    const gap = history('2025-01-06', '2025-03-16', ['08:00'], (d) => d === '2025-03-10' ? { offered: 0, aht: 0 } : varied(d))
+    const seed = buildHistorySeed(gap, 'voice', '2025-03-17', 0)
+    const monday = seed.intervalForecast[0]
+    expect(monday.ts).toBe('2025-03-17T08:00:00')
+    expect(monday.offered).toBeGreaterThan(100)
+    expect(monday.aht).toBeCloseTo(300, 10)
+  })
+
+  it('ignores records on or after the plan start, so later data cannot change cleaning', () => {
+    const before = history('2025-01-06', '2025-03-16', ['08:00'], byWeek)
+    // Varied later volume would move the cell median and MAD enough to flag every earlier interval.
+    const later = history('2025-03-17', '2025-06-29', ['08:00'], (d) => ({ offered: 1000 + (Number(d.slice(8, 10)) % 3), aht: 200 }))
+    expect(buildHistorySeed([...before, ...later], 'voice', '2025-03-17', 0)).toEqual(buildHistorySeed(before, 'voice', '2025-03-17', 0))
+  })
+
   it('uses only complete weeks that end before the plan start', () => {
     const seed = buildHistorySeed(records, 'voice', '2024-03-25', 0)
     expect(seed.weeks[0].isoWeek).toBe(13)

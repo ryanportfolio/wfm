@@ -2,6 +2,7 @@ import type { ForecastPoint, IntervalRecord } from './types'
 import type { DailyFteTotal, Scenario, StaffingConfig } from './staffing'
 import { applyScenario } from './staffing'
 import { cleanQueue } from './clean'
+import { buildProfiles } from './profiles'
 import { usHolidays } from './holidays'
 import { CAPACITY_WEEKS } from './capacity'
 import { addDays, civilFromDays, dayNumFromIso, daysFromCivil, isoFromDayNum, weekdayOfDayNum } from './series'
@@ -9,9 +10,10 @@ import { addDays, civilFromDays, dayNumFromIso, daysFromCivil, isoFromDayNum, we
 /**
  * Capacity demand seeded from the same ISO week of history.
  *
- * 1. History is cleaned with cleanQueue (interval outliers replaced by cell medians).
- * 2. Eligible history weeks are complete Monday-to-Sunday weeks inside the queue's
- *    date range that end before the plan start. Dates absent inside that range count
+ * 1. Records dated before the plan start are cleaned with cleanQueue (interval outliers
+ *    replaced by cell medians); later records are ignored, so they cannot move cleaning.
+ * 2. Eligible history weeks are complete Monday-to-Sunday weeks inside that history's
+ *    date range. Dates absent inside that range count
  *    as zero volume, as elsewhere in the app.
  * 3. Each plan week averages the eligible weeks with its ISO week number. Weight
  *    doubles per more recent ISO year: 2^(year - newest year), normalized. An ISO
@@ -20,7 +22,9 @@ import { addDays, civilFromDays, dayNumFromIso, daysFromCivil, isoFromDayNum, we
  *    the plan week is scaled by (1 + g)^d. Distance is measured to each plan week,
  *    so a fallback week-13 seed grows 12 weeks more than week 1 from the same history week.
  * 5. Averaging happens per interval slot (day of week and time): offered is the
- *    weighted, grown mean; AHT is the matching volume-weighted mean. The result is an
+ *    weighted, grown mean; AHT is the matching volume-weighted mean. An interval with
+ *    volume but no AHT (e.g. a zero-volume interval cleaning filled) takes buildProfiles'
+ *    cell AHT from the cleaned history, as the forecast's intervalize step does. The result is an
  *    interval forecast for 13 plan weeks, which the caller staffs exactly like a
  *    forecast seed. Required on-contact hours per plan week divided by paid hours
  *    per week give productive FTE.
@@ -104,7 +108,9 @@ export function buildHistorySeed(records: IntervalRecord[], queue: string, planS
   if (!Number.isFinite(weeklyGrowth) || Math.abs(weeklyGrowth) > HISTORY_SEED_MAX_WEEKLY_GROWTH) {
     throw new RangeError(`Weekly growth must be between -${HISTORY_SEED_MAX_WEEKLY_GROWTH * 100}% and ${HISTORY_SEED_MAX_WEEKLY_GROWTH * 100}%.`)
   }
-  const cleaned = cleanQueue(records, queue)
+  const cleaned = cleanQueue(records.filter(r => r.ts.slice(0, 10) < planStart), queue)
+  const { times, ahtByCell } = buildProfiles(cleaned.days, new Set(cleaned.report.closedHolidays))
+  const timeIdx = new Map(times.map((t, i) => [t, i]))
   const planNum = dayNumFromIso(planStart)
   const holidays = new Set(cleaned.report.holidays)
   const history: { monday: number; isoYear: number; isoWeek: number; holiday: boolean; slots: Map<string, Slot> }[] = []
@@ -116,7 +122,10 @@ export function buildHistorySeed(records: IntervalRecord[], queue: string, planS
     const week = days.slice(i, i + 7)
     const slots = new Map<string, Slot>()
     week.forEach((day, offset) => {
-      for (const iv of day.intervals) slots.set(`${offset}|${iv.time}`, { offered: iv.offered, work: iv.offered * iv.aht })
+      for (const iv of day.intervals) {
+        const aht = iv.offered > 0 && !(iv.aht > 0) ? ahtByCell[day.weekday][timeIdx.get(iv.time)!] : iv.aht
+        slots.set(`${offset}|${iv.time}`, { offered: iv.offered, work: iv.offered * aht })
+      }
     })
     history.push({ monday, ...isoWeekOfDayNum(monday), holiday: week.some(d => holidays.has(d.date)), slots })
   }

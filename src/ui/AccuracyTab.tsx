@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BacktestReport, BacktestScore, IntervalRecord } from '../engine/types'
 import type { BacktestScoreDetailed } from '../engine/backtest'
-import { backtestInWorker } from './workerClient'
+import { ACCURACY_BACKTEST_OPTS, backtestInWorker } from './workerClient'
 import type { ChartTheme, UiMethod } from './theme'
 import { EXTRA_COLORS, METHOD_COLORS, METHOD_SHORT, UI_METHODS } from './theme'
 import { WapeBarChart } from './charts/WapeBarChart'
@@ -73,7 +73,7 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
     setRunError(null)
     setProgress(null)
     // The backtest runs in the compute worker, so the UI stays interactive.
-    backtestInWorker(records, queue, { folds: 8, horizonDays: 28 }, (fold, totalFolds) =>
+    backtestInWorker(records, queue, ACCURACY_BACKTEST_OPTS, (fold, totalFolds) =>
       setProgress(`round ${fold} of ${totalFolds}`),
     )
       .then((out) => {
@@ -172,8 +172,8 @@ export function AccuracyTab({ records, queue, theme }: AccuracyTabProps) {
         <div className="card-title">
           <h2>Accuracy scorecard: {queue}</h2>
           <span className="card-subtitle">
-            8 held-back rounds (a <Term term="rollingOrigin">rolling-origin</Term> backtest), 28
-            days each, scored against raw actuals
+            {ACCURACY_BACKTEST_OPTS.folds} held-back rounds (a <Term term="rollingOrigin">rolling-origin</Term> backtest),{' '}
+            {ACCURACY_BACKTEST_OPTS.horizonDays} days each, scored against raw actuals
           </span>
           <span style={{ flex: 1 }} />
           <button

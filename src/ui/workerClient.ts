@@ -99,6 +99,9 @@ function post<T>(
   return { id, promise }
 }
 
+/** Folds and horizon the Accuracy tab runs; README.md quotes the same values. */
+export const ACCURACY_BACKTEST_OPTS = { folds: 8, horizonDays: 28 } satisfies BacktestOpts
+
 export async function backtestInWorker(
   records: IntervalRecord[],
   queue: string,

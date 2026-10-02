@@ -92,7 +92,8 @@ export function ScheduleTab({ forecast, queue, scenario, state, onChange, onBuil
   const liveError = failed && failed.job === job ? failed.error : null
   // A saved schedule, built here or opened from a project, shows only while the current inputs match its build.
   const result = useMemo(() => currentSchedule(state.built, job), [state.built, job])
-  const stale = !building && !result && !liveError && (state.built !== null || failed !== null)
+  // Only while Build is available: invalid inputs show the fix-errors note alone.
+  const stale = job !== null && !building && !result && !liveError && (state.built !== null || failed !== null)
 
   const build = () => {
     if (!job) return
@@ -153,7 +154,7 @@ export function ScheduleTab({ forecast, queue, scenario, state, onChange, onBuil
       {midnightContacts && <p className="note">This day has forecast contacts at midnight. Shifts cannot cross midnight here, so the hours after 00:00 can only be covered by shifts that start at 00:00, and the hours before 24:00 by shifts that end at 24:00. Real overnight shifts that span two days are not modeled.</p>}
       <div className="schedule-templates">
         {drafts.map((d, i) => <TemplateEditor key={d.id} draft={d} index={i} canRemove={drafts.length > 1}
-          errors={[...(parsed.errors[d.id] ?? []).map(e => ({ field: e.field, text: e.text })), ...(engineError?.templateId === d.id ? [{ field: null, text: engineError.text }] : [])]}
+          errors={[...(parsed.errors.get(d.id) ?? []).map(e => ({ field: e.field, text: e.text })), ...(engineError?.templateId === d.id ? [{ field: null, text: engineError.text }] : [])]}
           onPatch={p => patch(d.id, p)} onRemove={() => setTemplates(drafts.filter(t => t.id !== d.id))} />)}
       </div>
     </div>

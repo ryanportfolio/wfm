@@ -547,12 +547,15 @@ input[type="checkbox"] {
   border-bottom: none;
 }
 
-/* Zebra rows plus a hover wash keep the eye on one row across wide tables. */
-.table tbody tr:nth-child(even) td {
+/* Zebra rows plus a hover wash keep the eye on one row across wide tables.
+   Row headers (tbody th) take the same wash as their cells. */
+.table tbody tr:nth-child(even) td,
+.table tbody tr:nth-child(even) th {
   background: var(--row-alt);
 }
 
-.table tbody tr:hover td {
+.table tbody tr:hover td,
+.table tbody tr:hover th {
   background: var(--accent-soft);
 }
 
@@ -1261,9 +1264,6 @@ input[type="checkbox"] {
 .capacity-class-actions { margin-bottom: 12px; }
 .capacity-class-actions .note { margin: 0; }
 .capacity-class-table .num-input { width: 104px; }
-/* Row headers follow the zebra and hover washes of their cells. */
-.capacity-panel .table tbody tr:nth-child(even) th { background: var(--row-alt); }
-.capacity-panel .table tbody tr:hover th { background: var(--accent-soft); }
 .capacity-class-table small { display: block; max-width: 120px; white-space: normal; }
 .capacity-source small, .capacity-review { display: block; white-space: normal; max-width: 240px; }
 .capacity-review { color: var(--bad); font-weight: 600; }

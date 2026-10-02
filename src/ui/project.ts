@@ -14,7 +14,7 @@ import { intradayNumber, MAX_INTRADAY_CONTACTS, MAX_INTRADAY_HEADS } from '../en
 import { addDays, timePart } from '../engine/series'
 import { evaluateSchedule, SCHEDULE_LIMITS } from '../engine/schedule'
 import type { ScheduleInput, Shift } from '../engine/schedule'
-import { MAX_SHRINKAGE_PCT, REQUIREMENT_KEY } from './scheduleState'
+import { MAX_SHRINKAGE_PCT, REQUIREMENT_KEY, TEMPLATE_ID } from './scheduleState'
 import type { ScheduleState } from './scheduleState'
 
 export interface StaffingState {
@@ -108,14 +108,19 @@ function someFields(value: Record<string, unknown>, required: string[], optional
     throw new Error(`${label} has missing or unsupported fields.`)
   }
 }
+/** Ids the Schedule tab mints, such as "t3"; names like "constructor" or "__proto__" never load. */
+function templateId(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || value.length > SCHEDULE_LIMITS.idLength || !TEMPLATE_ID.test(value)) throw new Error(`${label} must be "t" followed by a number, such as t1.`)
+}
 /** A queue's 28-day forecast window and interval times, from its history. */
 interface QueueHistory { last: string; times: Set<string> }
 function forecastDay(h: QueueHistory, d: unknown): d is string {
   return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && validTimestamp(`${d}T00:00`) && d > h.last && d <= addDays(h.last, 28)
 }
 /**
- * Schedule tab state: drafts are text checked for shape and length only,
- * because clock fields are read against the selected day. A saved schedule
+ * Schedule tab state: draft fields are text checked for shape and length
+ * only, because clock fields are read against the selected day; template ids
+ * must have the form the tab mints. A saved schedule
  * must pass the engine's input checks and every shift its template's rules.
  */
 function schedule(value: unknown, label: string, h: QueueHistory): asserts value is ScheduleState {
@@ -137,7 +142,7 @@ function schedule(value: unknown, label: string, h: QueueHistory): asserts value
       const where = `${label} template ${i + 1}`
       const t = object(value, where)
       fields(t, ['id', 'name', 'length', 'earliestStart', 'latestStart', 'stepMinutes', 'breaks', 'lunch', 'minGapMinutes', 'maxShifts'], where)
-      string(t.id, `${where} id`, SCHEDULE_LIMITS.idLength)
+      templateId(t.id, `${where} id`)
       if (ids.has(t.id)) throw new Error(`${where} repeats template id "${t.id}".`)
       ids.add(t.id)
       string(t.name, `${where} name`, 300, true)
@@ -163,6 +168,7 @@ function schedule(value: unknown, label: string, h: QueueHistory): asserts value
     const w = `${where} template ${i + 1}`
     const t = object(value, w)
     someFields(t, ['id', 'name', 'lengthMinutes', 'start', 'breaks', 'minGapMinutes'], ['lunch', 'maxShifts'], w)
+    templateId(t.id, `${w} id`)
     fields(object(t.start, `${w} start`), ['earliest', 'latest', 'step'], `${w} start`)
     if (!Array.isArray(t.breaks) || t.breaks.length > SCHEDULE_LIMITS.breaksPerTemplate) throw new Error(`${w} needs at most ${SCHEDULE_LIMITS.breaksPerTemplate} breaks.`)
     t.breaks.forEach((r: unknown, j: number) => fields(object(r, `${w} break ${j + 1}`), ['minutes', 'earliestOffset', 'latestOffset'], `${w} break ${j + 1}`))

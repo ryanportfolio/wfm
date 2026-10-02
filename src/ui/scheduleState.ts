@@ -46,7 +46,7 @@ export interface TemplateDraft {
  * requirement (an Erlang solve) and the search history are stored.
  */
 export interface SavedSchedule {
-  /** scheduleRequirementKey of the build's forecast day, scenario A and staffing base config. */
+  /** scheduleRequirementKey of the build's job: the inputs that determine `required`. */
   requirementKey: string
   /** Engine input of the build: required on-phone agents per interval, day start, shrinkage fraction, engine templates. */
   input: { required: number[]; intervalMinutes: 15 | 30; dayStart: string; unplannedShrinkage: number; templates: ShiftTemplate[] }
@@ -91,9 +91,24 @@ function hash53(text: string): string {
 
 export const REQUIREMENT_KEY = /^[0-9a-f]{14}$/
 
-/** Fingerprint of what the requirement is solved from: the day's forecast intervals, scenario A and the base config. */
+/**
+ * Fingerprint of what scheduleDay solves `required` from: the day's forecast
+ * points, scenario A's volume and AHT adjustments, the Erlang settings it
+ * resolves the way applyScenario does, and the interval length. Shrinkage,
+ * fixed staff and the queue label do not change `required` and are left out;
+ * so are patience and the abandonment cap in Erlang C, which ignores them.
+ */
 export function scheduleRequirementKey(job: ScheduleDayRequest): string {
-  return hash53(canonical({ points: job.points, scenario: job.scenario, baseConfig: job.baseConfig }))
+  const { points, scenario: s, baseConfig: b } = job
+  const mode = s.mode ?? b.mode
+  const erlangA = mode === 'erlangA'
+  return hash53(canonical({
+    points: points.map(p => [p.ts, p.offered, p.aht]),
+    volumeDeltaPct: s.volumeDeltaPct ?? 0, ahtDeltaPct: s.ahtDeltaPct ?? 0, chatConcurrency: s.chatConcurrency ?? b.chatConcurrency ?? 1,
+    mode, slPct: s.slPct ?? b.slPct, slSeconds: s.slSeconds ?? b.slSeconds, occupancyCap: s.occupancyCap ?? b.occupancyCap,
+    patienceSec: erlangA ? s.patienceSec ?? b.patienceSec : undefined, maxAbandonPct: erlangA ? s.maxAbandonPct ?? b.maxAbandonPct : undefined,
+    intervalSec: b.intervalSec,
+  }))
 }
 
 /** The saved form of a build: its engine input and shifts. */
@@ -189,6 +204,9 @@ export const emptyScheduleState = (): ScheduleState => ({
   built: null,
 })
 
+/** Template ids as defaultTemplates and nextTemplateId mint them: "t" and a number. Project files must use the same form. */
+export const TEMPLATE_ID = /^t[1-9]\d{0,5}$/
+
 /** Next unused engine id. */
 export function nextTemplateId(templates: readonly TemplateDraft[]): string {
   const used = new Set(templates.map(t => t.id))
@@ -215,8 +233,8 @@ export interface FieldError {
 
 export interface ParsedTemplates {
   templates: ShiftTemplate[] | null
-  /** Keyed by draft id. */
-  errors: Record<string, FieldError[]>
+  /** Keyed by draft id; a Map, so ids such as "constructor" stay plain keys. */
+  errors: Map<string, FieldError[]>
 }
 
 const HM = /^(\d{1,2}):(\d{2})$/
@@ -227,7 +245,7 @@ const HM = /^(\d{1,2}):(\d{2})$/
  * become minutes after the first interval.
  */
 export function parseTemplates(drafts: readonly TemplateDraft[], dayStartMinutes: number, dayMinutes: number): ParsedTemplates {
-  const errors: Record<string, FieldError[]> = {}
+  const errors = new Map<string, FieldError[]>()
   const templates: ShiftTemplate[] = []
   for (const d of drafts) {
     const list: FieldError[] = []
@@ -282,13 +300,13 @@ export function parseTemplates(drafts: readonly TemplateDraft[], dayStartMinutes
     if (list.every(e => e.field !== 'latestStart' && e.field !== 'length') && latest + lengthMinutes > dayMinutes) {
       fail('latestStart', `Latest start: a shift of ${fmtDuration(lengthMinutes)} starting at ${d.latestStart.trim()} runs past ${fmtClock(dayStartMinutes + dayMinutes)}, when this day's last interval ends. Shifts cannot run overnight.`)
     }
-    if (list.length > 0) errors[d.id] = list
+    if (list.length > 0) errors.set(d.id, list)
     else templates.push({
       id: d.id, name, lengthMinutes, start: { earliest, latest, step }, breaks,
       ...(lunch && { lunch }), minGapMinutes: minGap, ...(maxShifts !== undefined && { maxShifts }),
     })
   }
-  return { templates: Object.keys(errors).length === 0 ? templates : null, errors }
+  return { templates: errors.size === 0 ? templates : null, errors }
 }
 
 /** Paid time of a draft as "h:mm" (time on site minus an unpaid lunch), or null while those fields do not parse. */

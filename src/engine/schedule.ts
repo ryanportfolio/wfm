@@ -385,6 +385,94 @@ function offsetsValid(p: Prepared, offs: readonly number[]): boolean {
   return next <= p.len
 }
 
+/** Cost of one interval at `c` covered agent-slots against `goal` agent-slots. */
+function intervalCostAt(goal: number, c: number): number {
+  const d = goal - c
+  return d > 0 ? UNDER_WEIGHT * d : -OVER_WEIGHT * d
+}
+
+/** Target per interval in agent-slots: k x required / (1 - shrinkage). */
+function goalSlots(input: ScheduleInput, ctx: Context): Float64Array {
+  const goal = new Float64Array(input.required.length)
+  for (let i = 0; i < goal.length; i++) goal[i] = ctx.k * input.required[i] / (1 - ctx.shrinkage)
+  return goal
+}
+
+/** Coverage cost summed over intervals in order, plus paid cost. */
+function scheduleCost(goal: Float64Array, sums: Int32Array, paidSlots: number): number {
+  let cost = 0
+  for (let i = 0; i < goal.length; i++) cost += intervalCostAt(goal[i], sums[i])
+  return cost + PAID_WEIGHT * paidSlots
+}
+
+/** Per-interval rows and under/over agent-hours from agent-slot sums per interval. */
+function coverage(input: ScheduleInput, ctx: Context, sums: Int32Array): { rows: ScheduleRow[]; under: number; over: number } {
+  const hours = input.intervalMinutes / 60
+  let under = 0
+  let over = 0
+  const rows: ScheduleRow[] = input.required.map((required, i) => {
+    const target = required / (1 - ctx.shrinkage)
+    const scheduled = sums[i] / ctx.k
+    const row = {
+      ts: formatTs(ctx.dayMs + i * input.intervalMinutes * 60_000),
+      required, target, scheduled,
+      over: Math.max(0, scheduled - target),
+      under: Math.max(0, target - scheduled),
+    }
+    under += row.under * hours
+    over += row.over * hours
+    return row
+  })
+  return { rows, under, over }
+}
+
+/**
+ * Coverage rows, totals and final cost of given shifts, such as a schedule
+ * restored from a file. Runs buildSchedule's input checks, then checks every
+ * shift against its template: a known template id, a start from the
+ * template's start list, the template's length, one start per break in
+ * order, a lunch exactly when the template has one, activity windows and
+ * minimum gaps, and the shift caps. Throws RangeError or TypeError.
+ */
+export function evaluateSchedule(input: ScheduleInput, shifts: readonly Shift[]): Pick<ScheduleResult, 'rows' | 'totals' | 'finalCost'> {
+  const ctx = validate(input, {})
+  const { prepared, k } = ctx
+  if (!Array.isArray(shifts) || shifts.length > SCHEDULE_LIMITS.shifts) throw new RangeError(`shifts must be a list of at most ${SCHEDULE_LIMITS.shifts}`)
+  const index = new Map(input.templates.map((t, i) => [t.id, i]))
+  const counts = prepared.map(() => 0)
+  const sums = new Int32Array(input.required.length)
+  const add = (from: number, to: number, sign: number) => {
+    for (let s = from; s < to; s++) sums[k === 1 ? s : s >> 1] += sign
+  }
+  let paidSlots = 0
+  shifts.forEach((sh, i) => {
+    const where = `shifts[${i}]`
+    if (typeof sh !== 'object' || sh === null) throw new TypeError(`${where} must be an object`)
+    const t = typeof sh.templateId === 'string' ? index.get(sh.templateId) : undefined
+    if (t === undefined) throw new RangeError(`${where} uses a template id that is not in the templates`)
+    const p = prepared[t]
+    const start = integerField(sh.startSlot, `${where}.startSlot`, 0, SCHEDULE_LIMITS.dayMinutes / SLOT_MINUTES)
+    if (!p.starts.includes(start)) throw new RangeError(`${where}.startSlot is not an allowed start of template "${sh.templateId}"`)
+    if (sh.endSlot !== start + p.len) throw new RangeError(`${where}.endSlot must be startSlot plus the template length`)
+    const hasLunch = p.dur.length > p.nBreaks
+    if (!Array.isArray(sh.breakSlots) || sh.breakSlots.length !== p.nBreaks) throw new RangeError(`${where}.breakSlots must list one start per template break`)
+    if (hasLunch === (sh.lunchSlot === null)) throw new RangeError(`${where}.lunchSlot must be a slot exactly when the template has a lunch`)
+    const slots = hasLunch ? [...sh.breakSlots, sh.lunchSlot] : [...sh.breakSlots]
+    const offs = slots.map((s, a) => integerField(s, `${where} activity ${a} slot`, start, start + p.len) - start)
+    if (!offsetsValid(p, offs)) throw new RangeError(`${where} breaks or lunch fall outside their windows, order or minimum gap`)
+    if (++counts[t] > p.cap) throw new RangeError(`Template "${sh.templateId}" has more shifts than its maxShifts cap`)
+    add(start, start + p.len, 1)
+    offs.forEach((o, a) => add(start + o, start + o + p.dur[a], -1))
+    paidSlots += p.paidSlots
+  })
+  const { rows, under, over } = coverage(input, ctx, sums)
+  return {
+    rows,
+    totals: { shiftCount: shifts.length, paidAgentHours: paidSlots * SLOT_MINUTES / 60, underAgentHours: under, overAgentHours: over },
+    finalCost: scheduleCost(goalSlots(input, ctx), sums, paidSlots),
+  }
+}
+
 /**
  * Runs the same input and option checks as buildSchedule without building,
  * so a form can report template errors before a build is requested. Throws
@@ -407,13 +495,9 @@ export function buildSchedule(input: ScheduleInput, options: ScheduleOptions = {
   const timeUp = () => ctx.deadlineMs !== undefined && now() - t0 >= ctx.deadlineMs
   const nIntervals = input.required.length
   // Interval cost works on slot sums: target in agent-slots is k * target agents.
-  const goal = new Float64Array(nIntervals)
-  for (let i = 0; i < nIntervals; i++) goal[i] = k * input.required[i] / (1 - ctx.shrinkage)
+  const goal = goalSlots(input, ctx)
   const sums = new Int32Array(nIntervals)
-  const intervalCost = (i: number, c: number) => {
-    const d = goal[i] - c
-    return d > 0 ? UNDER_WEIGHT * d : -OVER_WEIGHT * d
-  }
+  const intervalCost = (i: number, c: number) => intervalCostAt(goal[i], c)
   const applyRange = (from: number, to: number, sign: number) => {
     let delta = 0
     for (let s = from; s < to; s++) {
@@ -469,11 +553,9 @@ export function buildSchedule(input: ScheduleInput, options: ScheduleOptions = {
   }
   const paidCost = (t: number) => PAID_WEIGHT * prepared[t].paidSlots
   const fullCost = (shifts: readonly WorkShift[]) => {
-    let cost = 0
-    for (let i = 0; i < nIntervals; i++) cost += intervalCost(i, sums[i])
     let paid = 0
     for (const sh of shifts) paid += prepared[sh.t].paidSlots
-    return cost + PAID_WEIGHT * paid
+    return scheduleCost(goal, sums, paid)
   }
 
   // Greedy: add the single best shift until nothing lowers cost or a cap is hit.
@@ -603,22 +685,7 @@ export function buildSchedule(input: ScheduleInput, options: ScheduleOptions = {
   }
   const finalCost = fullCost(shifts)
 
-  const hours = input.intervalMinutes / 60
-  let under = 0
-  let over = 0
-  const rows: ScheduleRow[] = input.required.map((required, i) => {
-    const target = required / (1 - ctx.shrinkage)
-    const scheduled = sums[i] / k
-    const row = {
-      ts: formatTs(ctx.dayMs + i * input.intervalMinutes * 60_000),
-      required, target, scheduled,
-      over: Math.max(0, scheduled - target),
-      under: Math.max(0, target - scheduled),
-    }
-    under += row.under * hours
-    over += row.over * hours
-    return row
-  })
+  const { rows, under, over } = coverage(input, ctx, sums)
   let paidSlots = 0
   for (const sh of shifts) paidSlots += prepared[sh.t].paidSlots
   const ordered = [...shifts].sort((x, y) => x.start - y.start || x.t - y.t

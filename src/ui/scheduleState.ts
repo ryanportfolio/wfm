@@ -7,8 +7,9 @@
  * templates relative to the forecast day's first interval, reporting format
  * errors per field; engine validation then reports rule conflicts.
  */
-import type { ActivityRule, ShiftTemplate } from '../engine/schedule'
-import { DEFAULT_UNPLANNED_SHRINKAGE, SCHEDULE_LIMITS, SLOT_MINUTES } from '../engine/schedule'
+import type { ActivityRule, ScheduleResult, Shift, ShiftTemplate } from '../engine/schedule'
+import { DEFAULT_UNPLANNED_SHRINKAGE, evaluateSchedule, SCHEDULE_LIMITS, SLOT_MINUTES } from '../engine/schedule'
+import type { ScheduleDayRequest } from '../engine/scheduleDay'
 
 export interface ActivityDraft {
   /** Whole minutes. */
@@ -39,12 +40,88 @@ export interface TemplateDraft {
   maxShifts: string
 }
 
+/**
+ * The last built schedule, as saved in project files. Coverage rows, totals
+ * and final cost are recomputed from the shifts with evaluateSchedule; the
+ * requirement (an Erlang solve) and the search history are stored.
+ */
+export interface SavedSchedule {
+  /** scheduleRequirementKey of the build's forecast day, scenario A and staffing base config. */
+  requirementKey: string
+  /** Engine input of the build: required on-phone agents per interval, day start, shrinkage fraction, engine templates. */
+  input: { required: number[]; intervalMinutes: 15 | 30; dayStart: string; unplannedShrinkage: number; templates: ShiftTemplate[] }
+  shifts: Shift[]
+  greedyCost: number
+  iterations: number
+}
+
 export interface ScheduleState {
   selectedDay: string | null
   /** Whole percent text. */
   shrinkagePct: string
   /** Null until the first edit: the default templates, fitted to the selected day. */
   templates: TemplateDraft[] | null
+  /** Last successful build, shown only while the current inputs match it. */
+  built: SavedSchedule | null
+}
+
+/** JSON with object keys sorted and undefined fields left out, so equal values give equal text. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']'
+  if (value !== null && typeof value === 'object') {
+    const o = value as Record<string, unknown>
+    return '{' + Object.keys(o).filter(k => o[k] !== undefined).sort().map(k => JSON.stringify(k) + ':' + canonical(o[k])).join(',') + '}'
+  }
+  return JSON.stringify(value)
+}
+
+/** 14 hex digits of the 53-bit cyrb53 string hash. */
+function hash53(text: string): string {
+  let h1 = 0xdeadbeef
+  let h2 = 0x41c6ce57
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i)
+    h1 = Math.imul(h1 ^ c, 2654435761)
+    h2 = Math.imul(h2 ^ c, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0')
+}
+
+export const REQUIREMENT_KEY = /^[0-9a-f]{14}$/
+
+/** Fingerprint of what the requirement is solved from: the day's forecast intervals, scenario A and the base config. */
+export function scheduleRequirementKey(job: ScheduleDayRequest): string {
+  return hash53(canonical({ points: job.points, scenario: job.scenario, baseConfig: job.baseConfig }))
+}
+
+/** The saved form of a build: its engine input and shifts. */
+export function toSavedSchedule(job: ScheduleDayRequest, result: ScheduleResult): SavedSchedule {
+  return {
+    requirementKey: scheduleRequirementKey(job),
+    input: { required: result.rows.map(r => r.required), intervalMinutes: job.baseConfig.intervalSec / 60 as 15 | 30, dayStart: job.points[0].ts,
+      unplannedShrinkage: job.unplannedShrinkage, templates: job.templates },
+    shifts: result.shifts, greedyCost: result.greedyCost, iterations: result.iterations,
+  }
+}
+
+/**
+ * The saved schedule as a result when it was built from the job's inputs:
+ * same requirement key, day start, interval length, shrinkage and templates.
+ * Null when anything differs, or when the job is null.
+ */
+export function currentSchedule(saved: SavedSchedule | null, job: ScheduleDayRequest | null): ScheduleResult | null {
+  if (!saved || !job) return null
+  const { input } = saved
+  if (input.dayStart !== job.points[0]?.ts || input.required.length !== job.points.length || input.intervalMinutes * 60 !== job.baseConfig.intervalSec
+    || input.unplannedShrinkage !== job.unplannedShrinkage || canonical(input.templates) !== canonical(job.templates)
+    || saved.requirementKey !== scheduleRequirementKey(job)) return null
+  try {
+    return { ...evaluateSchedule(input, saved.shifts), shifts: saved.shifts, greedyCost: saved.greedyCost, iterations: saved.iterations }
+  } catch {
+    return null
+  }
 }
 
 export const MAX_SHRINKAGE_PCT = SCHEDULE_LIMITS.unplannedShrinkage * 100
@@ -109,6 +186,7 @@ export const emptyScheduleState = (): ScheduleState => ({
   selectedDay: null,
   shrinkagePct: String(DEFAULT_UNPLANNED_SHRINKAGE * 100),
   templates: null,
+  built: null,
 })
 
 /** Next unused engine id. */

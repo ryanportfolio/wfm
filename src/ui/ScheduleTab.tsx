@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ForecastResult } from '../engine/forecastPipeline'
 import type { StaffingConfig } from '../engine/staffing'
-import type { ScheduleResult } from '../engine/schedule'
 import { DEFAULT_MAX_ITERATIONS, OVER_WEIGHT, PAID_WEIGHT, paidMinutes, SCHEDULE_LIMITS, slotClock, UNDER_WEIGHT, validateSchedule } from '../engine/schedule'
 import type { ScheduleDayRequest } from '../engine/scheduleDay'
 import { SCHEDULE_DEADLINE_MS } from '../engine/scheduleDay'
 import { scheduleCoverageCsv, scheduleShiftsCsv } from '../engine/exportCsv'
 import type { ScenarioState } from './controls/ScenarioPanel'
 import { DEFAULT_SCENARIO, toEngineScenario } from './controls/ScenarioPanel'
-import type { ActivityDraft, ScheduleState, TemplateDraft } from './scheduleState'
+import type { ActivityDraft, SavedSchedule, ScheduleState, TemplateDraft } from './scheduleState'
 import type { DayHours } from './scheduleState'
-import { defaultTemplates, describeEngineError, draftPaidTime, fmtClock, MAX_SHRINKAGE_PCT, nextTemplateId, parseTemplates } from './scheduleState'
+import { currentSchedule, defaultTemplates, describeEngineError, draftPaidTime, fmtClock, MAX_SHRINKAGE_PCT, nextTemplateId, parseTemplates, toSavedSchedule } from './scheduleState'
 import { scheduleInWorker } from './workerClient'
 import { errorMessage } from './errors'
 import { downloadTextFile, fileSlug } from './download'
@@ -26,12 +25,14 @@ interface Props {
   scenario: ScenarioState
   state: ScheduleState
   onChange: (state: ScheduleState) => void
+  /** Stores a finished build as the queue's saved schedule. */
+  onBuilt: (built: SavedSchedule) => void
   theme: ChartTheme
 }
 
 const clockOf = (ts: string) => Number(ts.slice(11, 13)) * 60 + Number(ts.slice(14, 16))
 
-export function ScheduleTab({ forecast, queue, scenario, state, onChange, theme }: Props) {
+export function ScheduleTab({ forecast, queue, scenario, state, onChange, onBuilt, theme }: Props) {
   const isChat = queue.toLowerCase().includes('chat')
   const dates = useMemo(() => [...new Set(forecast.intervalForecast.map(p => p.ts.slice(0, 10)))], [forecast])
   // An out-of-horizon selection stays saved so extending the horizon restores it.
@@ -82,14 +83,16 @@ export function ScheduleTab({ forecast, queue, scenario, state, onChange, theme 
     ? { points, scenario: engineScenario, baseConfig, unplannedShrinkage: shrinkPct / 100, templates: parsed.templates }
     : null, [parsed, shrinkOk, engineError, points, engineScenario, baseConfig, shrinkPct])
 
-  const [settled, setSettled] = useState<{ job: ScheduleDayRequest; result?: ScheduleResult; error?: string } | null>(null)
+  const [failed, setFailed] = useState<{ job: ScheduleDayRequest; error: string } | null>(null)
   const [running, setRunning] = useState<ScheduleDayRequest | null>(null)
   const controller = useRef<AbortController | null>(null)
   // Changed inputs or leaving the tab for good cancels the build in flight.
   useEffect(() => () => { controller.current?.abort(); controller.current = null }, [job])
   const building = running !== null && running === job
-  const live = settled && settled.job === job ? settled : null
-  const result = live?.result
+  const liveError = failed && failed.job === job ? failed.error : null
+  // A saved schedule, built here or opened from a project, shows only while the current inputs match its build.
+  const result = useMemo(() => currentSchedule(state.built, job), [state.built, job])
+  const stale = !building && !result && !liveError && (state.built !== null || failed !== null)
 
   const build = () => {
     if (!job) return
@@ -98,9 +101,9 @@ export function ScheduleTab({ forecast, queue, scenario, state, onChange, theme 
     controller.current = c
     setRunning(job)
     scheduleInWorker(job, c.signal).then(r => {
-      if (!c.signal.aborted) { setSettled({ job, result: r }); setRunning(null) }
+      if (!c.signal.aborted) { setFailed(null); onBuilt(toSavedSchedule(job, r)); setRunning(null) }
     }).catch(err => {
-      if (!c.signal.aborted) { setSettled({ job, error: errorMessage(err) }); setRunning(null) }
+      if (!c.signal.aborted) { setFailed({ job, error: errorMessage(err) }); setRunning(null) }
     })
   }
   const cancel = () => { controller.current?.abort(); controller.current = null; setRunning(null) }
@@ -123,7 +126,7 @@ export function ScheduleTab({ forecast, queue, scenario, state, onChange, theme 
   const names = new Map(drafts.map(t => [t.id, t.name.trim()]))
   const shiftCounts = result ? drafts.map(t => ({ name: t.name.trim(), n: result.shifts.filter(s => s.templateId === t.id).length })).filter(x => x.n > 0) : []
   const clock = (slot: number) => slotClock(dayStart, slot)
-  const cutShort = result !== undefined && result.iterations < DEFAULT_MAX_ITERATIONS
+  const cutShort = result !== null && result.iterations < DEFAULT_MAX_ITERATIONS
   const templatesById = new Map((job?.templates ?? []).map(t => [t.id, t]))
 
   return <div className="stack schedule-panel">
@@ -140,7 +143,7 @@ export function ScheduleTab({ forecast, queue, scenario, state, onChange, theme 
       <p id="schedule-shrinkage-hint" className="note">Unplanned shrinkage covers absence, coaching, meetings and other off-phone time the templates do not schedule. Leave breaks and lunch out of it: they are placed explicitly. Target = required / (1 - unplanned shrinkage).</p>
       <div aria-live="polite">{!shrinkOk && <p className="error-text">Unplanned shrinkage: enter a percent from 0 to {MAX_SHRINKAGE_PCT}.</p>}</div>
       <p className="note">Required agents are scenario A's on-phone requirement from the Staffing tab: {scenario.mode === 'erlangA' ? 'Erlang A' : 'Erlang C'}, {scenario.slPct}% answered within {scenario.slSeconds} s{scenario.mode === 'erlangA' ? `, ${scenario.patienceSec} s patience` : ''}, {scenario.occupancyCapPct}% occupancy cap{scenario.mode === 'erlangA' && scenario.useAbandonCap ? `, ${scenario.maxAbandonPct}% abandonment cap` : ''}, {scenario.volumeDeltaPct}% volume and {scenario.ahtDeltaPct}% AHT adjustment{isChat ? `, ${scenario.chatConcurrency} chats per agent` : ''}. Change these in Staffing. Staffing-tab shrinkage ({scenario.shrinkagePct}%) is not used here.</p>
-      <p className="note">Limits: a heuristic search for one queue and one day; it does not prove the schedule is the best possible. It has no named agents, days off, weekly hours, agent preferences, skills routing or labor-law rules. Each interval's requirement is an Erlang steady-state value, so callers still waiting at the end of an interval do not carry into the next. Times are wall-clock with no daylight-saving adjustment. Schedules are not saved in project files yet; download the CSVs to keep one.</p>
+      <p className="note">Limits: a heuristic search for one queue and one day; it does not prove the schedule is the best possible. It has no named agents, days off, weekly hours, agent preferences, skills routing or labor-law rules. Each interval's requirement is an Erlang steady-state value, so callers still waiting at the end of an interval do not carry into the next. Times are wall-clock with no daylight-saving adjustment. Save project keeps each queue's inputs and last built schedule; an opened schedule shows while its inputs still match.</p>
     </div>
 
     <div className="card">
@@ -163,9 +166,9 @@ export function ScheduleTab({ forecast, queue, scenario, state, onChange, theme 
       </div>
       <div aria-live="polite">{engineError && engineError.templateId === null && <p className="error-text">{engineError.text}</p>}</div>
       {!job && !engineError && <p className="note">Fix the errors shown above to build a schedule.</p>}
-      <div role="status">{settled && !live && !building && <p className="note">Inputs changed since the last build. Build again to see a schedule for the current inputs.</p>}</div>
-      {!settled && !building && job && <p className="note">Same inputs always give the same schedule. Builds stop after 10 seconds.</p>}
-      <div role="alert">{live?.error && <p className="error-text">{live.error} No schedule was built.</p>}</div>
+      <div role="status">{stale && <p className="note">Inputs changed since the last build. Build again to see a schedule for the current inputs.</p>}</div>
+      {!state.built && !failed && !building && job && <p className="note">Same inputs always give the same schedule. Builds stop after 10 seconds.</p>}
+      <div role="alert">{liveError && <p className="error-text">{liveError} No schedule was built.</p>}</div>
     </div>
 
     {result && <>

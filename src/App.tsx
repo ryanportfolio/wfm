@@ -20,6 +20,9 @@ import { CapacityTab } from './ui/CapacityTab'
 import { IntradayTab } from './ui/IntradayTab'
 import { emptyIntradayState } from './ui/intradayState'
 import type { IntradayState } from './ui/intradayState'
+import { ScheduleTab } from './ui/ScheduleTab'
+import { emptyScheduleState } from './ui/scheduleState'
+import type { ScheduleState } from './ui/scheduleState'
 import { emptyCapacityState } from './ui/capacityState'
 import type { CapacityState } from './ui/capacityState'
 import { StaffingTab } from './ui/StaffingTab'
@@ -46,6 +49,11 @@ export default function App() {
   const [queueChoice, setQueueChoice] = useState('')
   const [capacityByQueue, setCapacityByQueue] = useState<Record<string, CapacityState>>({})
   const [intradayByQueue, setIntradayByQueue] = useState<Record<string, IntradayState>>({})
+  // Schedule inputs live per queue for the session; project files do not store them yet.
+  const [scheduleByQueue, setScheduleByQueue] = useState<Record<string, ScheduleState>>({})
+  // The schedule editor mounts on the first visit to its tab, then stays mounted so results survive tab switches.
+  const [scheduleSeen, setScheduleSeen] = useState(false)
+  if (tab === 'schedule' && !scheduleSeen) setScheduleSeen(true)
   const [datasetVersion, setDatasetVersion] = useState(0)
   const [horizon, setHorizon] = useState<Horizon>(14)
   const [tourOpen, setTourOpen] = useState(false)
@@ -114,6 +122,7 @@ export default function App() {
       forecastCache.current.clear()
       setCapacityByQueue({})
       setIntradayByQueue({})
+      setScheduleByQueue({})
       setDatasetVersion(v => v + 1)
       setForecast(null)
       setRecords(recs)
@@ -187,6 +196,7 @@ export default function App() {
       setStaffing(project.staffing)
       setCapacityByQueue(project.capacityByQueue)
       setIntradayByQueue(project.intradayByQueue)
+      setScheduleByQueue({})
       setDatasetVersion(v => v + 1)
       setProjectName(project.name)
       setCsvErrors([])
@@ -357,6 +367,11 @@ export default function App() {
           {hasData && forecast?.queue === queue && forecast.dailyForecast.length === horizon ? <IntradayTab key={datasetVersion + '|' + queue + '|' + horizon} forecast={forecast} queue={queue} scenario={staffing.a} theme={theme} active={tab === 'intraday'}
             state={Object.hasOwn(intradayByQueue, queue) ? intradayByQueue[queue] : emptyIntradayState()}
             onChange={next => setIntradayByQueue(prev => ({ ...prev, [queue]: next }))} /> : hasData ? computingCard : <EmptyState title="No data for intraday reforecast yet" text="Load data to compare observed contacts and remaining demand with interval staffing." onGoData={() => setTab('data')} />}
+        </div>
+        <div hidden={tab !== 'schedule'} role="tabpanel" id="panel-schedule" aria-labelledby="tab-schedule">
+          {!scheduleSeen ? null : hasData && forecast?.queue === queue && forecast.dailyForecast.length === horizon ? <ScheduleTab key={datasetVersion + '|' + queue + '|' + horizon} forecast={forecast} queue={queue} scenario={staffing.a} theme={theme}
+            state={Object.hasOwn(scheduleByQueue, queue) ? scheduleByQueue[queue] : emptyScheduleState()}
+            onChange={next => setScheduleByQueue(prev => ({ ...prev, [queue]: next }))} /> : hasData ? computingCard : <EmptyState title="No data to schedule yet" text="Load data to build one day of shifts, with breaks and lunch, against the interval staffing requirement." onGoData={() => setTab('data')} />}
         </div>
       </main>
 

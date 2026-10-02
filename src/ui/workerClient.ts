@@ -26,33 +26,71 @@ import type { Scenario, StaffingConfig, StaffingGridResult } from '../engine/sta
 import type { PendingEntry, WorkerRequest, WorkerResponse } from '../engine/workerProtocol'
 import { failAll, routeMessage, supersede } from '../engine/workerProtocol'
 import type { IntradayInputs, IntradayResult } from '../engine/intraday'
+import type { ScheduleDayRequest } from '../engine/scheduleDay'
+import type { ScheduleResult } from '../engine/schedule'
 
-/** Isolated, cancellable job: editing cannot queue obsolete Erlang solves behind each other. */
-export async function intradayInWorker(points: ForecastPoint[], inputs: IntradayInputs, config: StaffingConfig, signal: AbortSignal): Promise<IntradayResult> {
-  if (signal.aborted) throw new Error('Intraday calculation cancelled.')
+/** Wording for one kind of isolated job's cancel, timeout and crash errors. */
+interface JobText { cancelled: string; timeout: string; failed: string }
+
+/**
+ * Runs one request in its own short-lived worker that is terminated on
+ * finish, abort or the 10-second timeout, so obsolete work never queues
+ * behind the current job. Without Worker support the fallback runs on the
+ * calling thread and cannot be interrupted.
+ */
+async function isolatedJob<T>(req: DistributiveOmit<WorkerRequest, 'id'>, text: JobText, signal: AbortSignal, fallback: () => Promise<T>): Promise<T> {
+  if (signal.aborted) throw new Error(text.cancelled)
   if (!workerSupported()) {
-    const { calculateIntraday } = await import('../engine/intraday')
-    if (signal.aborted) throw new Error('Intraday calculation cancelled.')
-    return calculateIntraday(points, inputs, config)
+    const result = await fallback()
+    if (signal.aborted) throw new Error(text.cancelled)
+    return result
   }
   return new Promise((resolve, reject) => {
     const job = new Worker(new URL('../engine/worker.ts', import.meta.url), { type: 'module' })
-    const finish = (err?: Error, result?: IntradayResult) => {
+    const finish = (err?: Error, result?: T) => {
       clearTimeout(timer)
       signal.removeEventListener('abort', cancel)
       job.terminate()
       if (err) reject(err)
       else resolve(result!)
     }
-    const cancel = () => finish(new Error('Intraday calculation cancelled.'))
-    const timer = setTimeout(() => finish(new Error('Intraday calculation exceeded 10 seconds. Check inputs and supported workload limits, then retry.')), 10_000)
+    const cancel = () => finish(new Error(text.cancelled))
+    const timer = setTimeout(() => finish(new Error(text.timeout)), 10_000)
     signal.addEventListener('abort', cancel, { once: true })
-    job.onerror = e => finish(new Error(e.message || 'Intraday worker failed.'))
+    job.onerror = e => finish(new Error(e.message || text.failed))
     job.onmessage = (e: MessageEvent<WorkerResponse>) => {
       if (e.data.kind === 'error') finish(new Error(e.data.message))
-      else if (e.data.kind === 'result') finish(undefined, e.data.result as IntradayResult)
+      else if (e.data.kind === 'result') finish(undefined, e.data.result as T)
     }
-    job.postMessage({ id: 1, kind: 'intraday', points, inputs, config } satisfies WorkerRequest)
+    job.postMessage({ ...req, id: 1 } as WorkerRequest)
+  })
+}
+
+/** Isolated, cancellable job: editing cannot queue obsolete Erlang solves behind each other. */
+export function intradayInWorker(points: ForecastPoint[], inputs: IntradayInputs, config: StaffingConfig, signal: AbortSignal): Promise<IntradayResult> {
+  return isolatedJob<IntradayResult>({ kind: 'intraday', points, inputs, config }, {
+    cancelled: 'Intraday calculation cancelled.',
+    timeout: 'Intraday calculation exceeded 10 seconds. Check inputs and supported workload limits, then retry.',
+    failed: 'Intraday worker failed.',
+  }, signal, async () => {
+    const { calculateIntraday } = await import('../engine/intraday')
+    if (signal.aborted) throw new Error('Intraday calculation cancelled.')
+    return calculateIntraday(points, inputs, config)
+  })
+}
+
+/** Isolated, cancellable schedule build: Erlang requirement for one day, then shifts. */
+export function scheduleInWorker(request: ScheduleDayRequest, signal: AbortSignal): Promise<ScheduleResult> {
+  // The build budget counts from here, so worker startup and transfer time are included.
+  request = { ...request, startedAt: Date.now() }
+  return isolatedJob<ScheduleResult>({ kind: 'schedule', request }, {
+    cancelled: 'Schedule build cancelled.',
+    timeout: 'Schedule build exceeded 10 seconds. Try fewer templates, narrower start windows or a larger start step, then build again.',
+    failed: 'Schedule worker failed.',
+  }, signal, async () => {
+    const { scheduleDay } = await import('../engine/scheduleDay')
+    if (signal.aborted) throw new Error('Schedule build cancelled.')
+    return scheduleDay(request)
   })
 }
 

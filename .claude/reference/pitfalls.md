@@ -61,3 +61,11 @@ Prevention protocol (run every time before trusting a preview):
    server startup messages can sit buffered and unread — with port 0
    (auto-assign) you can never learn which port was chosen. Always pass an
    explicit port to servers started in the background.
+
+## Removing a worktree that holds a node_modules junction empties the target (2026-10-01)
+
+`git worktree remove --force` on a worktree whose `node_modules` was a directory junction to another worktree's `node_modules` deleted the real `node_modules` behind the link. Never link `node_modules` between worktrees: run `npm ci` in each one.
+
+## Vitest collects test files under `.tmp/` (2026-10-01)
+
+Vitest's default exclude list does not cover `.tmp/`, so `npm test` also ran a `.tmp/main-check` worktree's suite and stray `.test.ts` copies there: 41 extra files, 37 failures, roughly double the run time. Keep test files and comparison worktrees out of `.tmp/` while running the suite, or remove them first.

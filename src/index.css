@@ -1257,3 +1257,22 @@ input[type="checkbox"] {
 .project-controls { margin-bottom: 1rem; }
 .project-controls #project-name { width: min(100%, 240px); }
 .project-controls .note:last-child { margin-bottom: 0; }
+/* Schedule builder: template editor cards and long result tables. */
+.schedule-panel { min-width: 0; }
+.schedule-controls { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0; }
+.schedule-controls label { display: flex; flex-direction: column; gap: 6px; }
+.schedule-templates { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: var(--space-2); }
+.schedule-template { min-width: 0; margin: 0; border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--space-2); }
+.schedule-template legend { font-weight: 600; padding: 0 8px; }
+.schedule-template > .row { margin-top: 12px; }
+.schedule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; align-items: end; }
+.schedule-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.schedule-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); min-width: 0; }
+.schedule-field .num-input { width: 100%; }
+.schedule-panel input[aria-invalid="true"] { border-color: var(--bad); }
+.schedule-activity { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.schedule-activity-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; font-weight: 600; font-size: var(--text-sm); }
+.schedule-activity-head .check-row { margin: 0; font-weight: 400; }
+.schedule-activity-head .btn-quiet { margin-left: auto; }
+.schedule-errors { margin: 12px 0 0; padding-left: 1.2em; font-size: var(--text-sm); }
+.schedule-scroll { max-height: 420px; }

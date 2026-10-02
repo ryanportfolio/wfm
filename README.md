@@ -59,11 +59,15 @@ Use "Seed demand from selected forecast" to convert complete seven-day blocks of
 
 Intraday supports up to 48 half-hour intervals starting at :00 or :30, 100,000 contacts, 500 scheduled heads and 100 Erlangs per interval. A worker stops jobs after 10 seconds. Staffing and fixed-staff projections support up to 1,000 Erlangs and 2,000 on-contact agents per interval. Erlang A also limits each solve to 5 million waiting-phase updates, with a bounded-error shortcut for negligible late-service probability; see [model limits](docs/design.md). Unsupported assumptions produce an error. Check contact counts, concurrency, and AHT, patience and answer target in seconds if a limit is reached. Each interval uses steady-state queue math; waiting callers do not carry into the next interval.
 
+**Schedule.** Build one day of shifts for the selected queue. Requirements are scenario A's on-phone agents per interval from the Staffing tab. Add unplanned shrinkage (default 15%: absence, coaching, meetings; breaks and lunch are placed explicitly, so they stay out of it) to get the target. Edit up to 12 shift templates: time on site, a start window in clock times with a start step, up to four paid breaks and an optional paid or unpaid lunch, each with a window measured from shift start, a minimum gap and an optional shift cap. Defaults are a full-time 8.5-hour shift with two 15-minute breaks and an unpaid 30-minute lunch, a 4-hour part-time shift with one break, and a 10.5-hour shift. Until you edit them, their start windows follow the day's open hours (first to last interval with forecast contacts) so shifts can start at opening and end at closing; for open hours shorter than a shift, the window widens within the day. Invalid templates show their errors inline and block the build.
+
+Build places shifts greedily, then improves them with a seeded local search; the same inputs give the same schedule. It reports shifts, paid hours, understaffed and overstaffed agent-hours against target, a coverage chart with the same numbers in a table, and every shift with its break and lunch times. Shifts and interval coverage download as CSV. The result is a heuristic for one queue and one day, not a proven optimum. It has no named agents, days off, weekly hours, preferences, skills routing or labor-law rules, and no shift crosses midnight, so a 24-hour queue is covered by shifts that start at 00:00 or end at 24:00. It needs 15- or 30-minute intervals; hourly data is not supported. Requirements are per-interval Erlang steady-state values, and times are wall-clock with no daylight-saving adjustment. Builds stop after 10 seconds. Project files do not store schedules yet.
+
 **Named projects.** Name the working plan and choose "Save project" to download JSON. "Open project" restores all interval history, selected queue and horizon, staffing A/B and cost settings, each queue's capacity plan, and intraday inputs by queue/day. Version 1 files open with empty intraday inputs; current files use version 2. Invalid or unsupported files leave current work intact. Project files are local downloads, with no automatic upload or autosave.
 
-Save before closing the page. Loading replacement CSV or sample data clears capacity and intraday plans.
+Save before closing the page. Loading replacement CSV or sample data clears capacity and intraday plans. Schedule inputs last for the browser session only and reset when data or a project loads.
 
-**Working with results.** Forecast, scorecard, staffing, capacity and intraday tables download as CSV. Staffing scenario settings encode into the URL hash, so a what-if is shareable as a link; links do not contain data, capacity plans or intraday inputs. An opened project takes precedence over initial link settings. Forecasts, backtests, and staffing solves run in a Web Worker to keep the sliders responsive, and a header toggle switches between light, dark, and system theme.
+**Working with results.** Forecast, scorecard, staffing, capacity, intraday and schedule tables download as CSV. Staffing scenario settings encode into the URL hash, so a what-if is shareable as a link; links do not contain data, capacity plans or intraday inputs. An opened project takes precedence over initial link settings. Forecasts, backtests, and staffing solves run in a Web Worker to keep the sliders responsive, and a header toggle switches between light, dark, and system theme.
 
 ![Staffing tab, dark theme](docs/screenshots/staffing-dark.png)
 
@@ -73,7 +77,7 @@ Research notes with sources are in [docs/research.md](docs/research.md): Taylor 
 
 ## Roadmap
 
-Forecast/staffing, the one-queue capacity planner, named projects and intraday reforecast are implemented. Queue strategy analysis (pooled versus split queues) remains future work. Scope and limitations are in [docs/design.md](docs/design.md#module-roadmap).
+Forecast/staffing, the one-queue capacity planner, named projects, intraday reforecast and the one-day schedule builder are implemented; saving schedules in project files is next. Queue strategy analysis (pooled versus split queues) remains future work. Scope and limitations are in [docs/design.md](docs/design.md#module-roadmap).
 
 ## Stack
 

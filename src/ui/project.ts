@@ -12,6 +12,10 @@ import type { Horizon } from './ForecastTab'
 import type { IntradayState } from './intradayState'
 import { intradayNumber, MAX_INTRADAY_CONTACTS, MAX_INTRADAY_HEADS } from '../engine/intraday'
 import { addDays, timePart } from '../engine/series'
+import { evaluateSchedule, SCHEDULE_LIMITS } from '../engine/schedule'
+import type { ScheduleInput, Shift } from '../engine/schedule'
+import { MAX_SHRINKAGE_PCT, REQUIREMENT_KEY, TEMPLATE_ID } from './scheduleState'
+import type { ScheduleState } from './scheduleState'
 
 export interface StaffingState {
   a: ScenarioState
@@ -21,7 +25,7 @@ export interface StaffingState {
 }
 export interface Project {
   schema: 'wfm-project'
-  version: 3
+  version: 4
   name: string
   records: IntervalRecord[]
   sourceLabel: string
@@ -30,6 +34,7 @@ export interface Project {
   staffing: StaffingState
   capacityByQueue: Record<string, CapacityState>
   intradayByQueue: Record<string, IntradayState>
+  scheduleByQueue: Record<string, ScheduleState>
 }
 // The bundled 105120-row sample is about 10 MB. Leave room for larger histories.
 export const MAX_PROJECT_BYTES = 64 * 1024 * 1024
@@ -97,6 +102,85 @@ function capacity(value: unknown, label: string): asserts value is CapacityState
   if (s.seedGrowthPct !== null) number(s.seedGrowthPct, `${label}.seedGrowthPct`, -growth, growth)
   if (!Array.isArray(s.holidayMismatch) || s.holidayMismatch.length !== 13 || s.holidayMismatch.some((v: unknown) => typeof v !== 'boolean')) throw new Error(`${label}.holidayMismatch must hold 13 true/false flags.`)
 }
+/** Exactly the required keys plus any of the optional ones. */
+function someFields(value: Record<string, unknown>, required: string[], optional: string[], label: string) {
+  if (required.some(k => !Object.hasOwn(value, k)) || Object.keys(value).some(k => !required.includes(k) && !optional.includes(k))) {
+    throw new Error(`${label} has missing or unsupported fields.`)
+  }
+}
+/** Ids the Schedule tab mints, such as "t3"; names like "constructor" or "__proto__" never load. */
+function templateId(value: unknown, label: string): asserts value is string {
+  if (typeof value !== 'string' || value.length > SCHEDULE_LIMITS.idLength || !TEMPLATE_ID.test(value)) throw new Error(`${label} must be "t" followed by a number, such as t1.`)
+}
+/** A queue's 28-day forecast window and interval times, from its history. */
+interface QueueHistory { last: string; times: Set<string> }
+function forecastDay(h: QueueHistory, d: unknown): d is string {
+  return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && validTimestamp(`${d}T00:00`) && d > h.last && d <= addDays(h.last, 28)
+}
+/**
+ * Schedule tab state: draft fields are text checked for shape and length
+ * only, because clock fields are read against the selected day; template ids
+ * must have the form the tab mints. A saved schedule
+ * must pass the engine's input checks and every shift its template's rules.
+ */
+function schedule(value: unknown, label: string, h: QueueHistory): asserts value is ScheduleState {
+  const s = object(value, label)
+  fields(s, ['selectedDay', 'shrinkagePct', 'templates', 'built'], label)
+  if (s.selectedDay !== null && !forecastDay(h, s.selectedDay)) throw new Error(`${label} selected day must be in the 28-day forecast window.`)
+  string(s.shrinkagePct, `${label} unplanned shrinkage`, 100, true)
+  if (s.shrinkagePct.trim()) number(Number(s.shrinkagePct), `${label} unplanned shrinkage`, 0, MAX_SHRINKAGE_PCT)
+  if (s.templates !== null) {
+    if (!Array.isArray(s.templates) || !s.templates.length || s.templates.length > SCHEDULE_LIMITS.templates) throw new Error(`${label} needs 1 to ${SCHEDULE_LIMITS.templates} shift templates.`)
+    const ids = new Set<string>()
+    const activity = (value: unknown, where: string, lunch: boolean) => {
+      const a = object(value, where)
+      fields(a, lunch ? ['minutes', 'earliest', 'latest', 'paid'] : ['minutes', 'earliest', 'latest'], where)
+      for (const key of ['minutes', 'earliest', 'latest']) string(a[key], `${where} ${key}`, 100, true)
+      if (lunch && typeof a.paid !== 'boolean') throw new Error(`${where} needs a true/false paid setting.`)
+    }
+    s.templates.forEach((value: unknown, i: number) => {
+      const where = `${label} template ${i + 1}`
+      const t = object(value, where)
+      fields(t, ['id', 'name', 'length', 'earliestStart', 'latestStart', 'stepMinutes', 'breaks', 'lunch', 'minGapMinutes', 'maxShifts'], where)
+      templateId(t.id, `${where} id`)
+      if (ids.has(t.id)) throw new Error(`${where} repeats template id "${t.id}".`)
+      ids.add(t.id)
+      string(t.name, `${where} name`, 300, true)
+      for (const key of ['length', 'earliestStart', 'latestStart', 'stepMinutes', 'minGapMinutes', 'maxShifts']) string(t[key], `${where} ${key}`, 100, true)
+      if (!Array.isArray(t.breaks) || t.breaks.length > SCHEDULE_LIMITS.breaksPerTemplate) throw new Error(`${where} needs at most ${SCHEDULE_LIMITS.breaksPerTemplate} breaks.`)
+      t.breaks.forEach((b: unknown, j: number) => activity(b, `${where} break ${j + 1}`, false))
+      if (t.lunch !== null) activity(t.lunch, `${where} lunch`, true)
+    })
+  }
+  if (s.built === null) return
+  const where = `${label} built schedule`
+  const b = object(s.built, where)
+  fields(b, ['requirementKey', 'input', 'shifts', 'greedyCost', 'iterations'], where)
+  if (typeof b.requirementKey !== 'string' || !REQUIREMENT_KEY.test(b.requirementKey)) throw new Error(`${where} needs a 14-digit hexadecimal requirement key.`)
+  const input = object(b.input, `${where} input`)
+  fields(input, ['required', 'intervalMinutes', 'dayStart', 'unplannedShrinkage', 'templates'], `${where} input`)
+  if (typeof input.dayStart !== 'string' || input.dayStart[10] !== 'T' || !forecastDay(h, input.dayStart.slice(0, 10)) || !h.times.has(input.dayStart.slice(11))) {
+    throw new Error(`${where} must start at an interval of the queue's history on a day in the 28-day forecast window.`)
+  }
+  if (!Array.isArray(input.required) || input.required.length > h.times.size) throw new Error(`${where} lists more intervals than the queue's day has.`)
+  if (!Array.isArray(input.templates) || input.templates.length > SCHEDULE_LIMITS.templates) throw new Error(`${where} needs at most ${SCHEDULE_LIMITS.templates} templates.`)
+  input.templates.forEach((value: unknown, i: number) => {
+    const w = `${where} template ${i + 1}`
+    const t = object(value, w)
+    someFields(t, ['id', 'name', 'lengthMinutes', 'start', 'breaks', 'minGapMinutes'], ['lunch', 'maxShifts'], w)
+    templateId(t.id, `${w} id`)
+    fields(object(t.start, `${w} start`), ['earliest', 'latest', 'step'], `${w} start`)
+    if (!Array.isArray(t.breaks) || t.breaks.length > SCHEDULE_LIMITS.breaksPerTemplate) throw new Error(`${w} needs at most ${SCHEDULE_LIMITS.breaksPerTemplate} breaks.`)
+    t.breaks.forEach((r: unknown, j: number) => fields(object(r, `${w} break ${j + 1}`), ['minutes', 'earliestOffset', 'latestOffset'], `${w} break ${j + 1}`))
+    if (Object.hasOwn(t, 'lunch')) fields(object(t.lunch, `${w} lunch`), ['minutes', 'earliestOffset', 'latestOffset', 'paid'], `${w} lunch`)
+  })
+  if (!Array.isArray(b.shifts) || b.shifts.length > SCHEDULE_LIMITS.shifts) throw new Error(`${where} needs at most ${SCHEDULE_LIMITS.shifts} shifts.`)
+  b.shifts.forEach((value: unknown, i: number) => fields(object(value, `${where} shift ${i + 1}`), ['templateId', 'startSlot', 'endSlot', 'breakSlots', 'lunchSlot'], `${where} shift ${i + 1}`))
+  number(b.greedyCost, `${where} first-pass cost`)
+  number(b.iterations, `${where} improvement moves`, 0, SCHEDULE_LIMITS.maxIterations)
+  if (!Number.isInteger(b.iterations)) throw new Error(`${where} improvement moves must be a whole number.`)
+  try { evaluateSchedule(input as unknown as ScheduleInput, b.shifts as Shift[]) } catch (err) { throw new Error(`${where}: ${(err as Error).message}.`) }
+}
 /** v2 capacity drafts had one class; v3 makes it a one-element list with no nesting and the same rate for new hires. */
 function migrateCapacityV2(value: unknown, label: string): unknown {
   const s = object(value, label)
@@ -111,8 +195,8 @@ function migrateCapacityV2(value: unknown, label: string): unknown {
 /** Strict validation runs before serialization and before any imported state is applied. */
 export function validateProject(value: unknown): asserts value is Project {
   const p = object(value, 'Project')
-  if (p.schema !== 'wfm-project' || p.version !== 3) throw new Error('Unsupported project format or version. Expected WFM project version 3.')
-  fields(p, ['schema', 'version', 'name', 'records', 'sourceLabel', 'queue', 'horizon', 'staffing', 'capacityByQueue', 'intradayByQueue'], 'Project')
+  if (p.schema !== 'wfm-project' || p.version !== 4) throw new Error('Unsupported project format or version. Expected WFM project version 4.')
+  fields(p, ['schema', 'version', 'name', 'records', 'sourceLabel', 'queue', 'horizon', 'staffing', 'capacityByQueue', 'intradayByQueue', 'scheduleByQueue'], 'Project')
   string(p.name, 'Project name', 120)
   string(p.sourceLabel, 'Data source', 1000)
   if (!Array.isArray(p.records) || !p.records.length || p.records.length > MAX_PROJECT_ROWS) throw new Error(`Project needs 1 to ${MAX_PROJECT_ROWS} interval rows.`)
@@ -148,7 +232,7 @@ export function validateProject(value: unknown): asserts value is Project {
   const intraday = object(p.intradayByQueue, 'Intraday plans')
   // Forecast dates are the 28 days after the last date in each queue; times come from its history.
   // Retain days outside the selected shorter horizon, allowing an exact restore when expanded.
-  const history = new Map<string, { last: string; times: Set<string> }>()
+  const history = new Map<string, QueueHistory>()
   for (const r of p.records as IntervalRecord[]) {
     const h = history.get(r.queue) ?? { last: '', times: new Set<string>() }
     if (r.ts.slice(0, 10) > h.last) h.last = r.ts.slice(0, 10)
@@ -159,7 +243,7 @@ export function validateProject(value: unknown): asserts value is Project {
     if (!h) throw new Error(`Intraday queue "${queue}" is absent from the data.`)
     const state = object(value, 'Intraday state')
     fields(state, ['selectedDay', 'days'], 'Intraday state')
-    const validDay = (d: unknown): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && validTimestamp(`${d}T00:00`) && d > h.last && d <= addDays(h.last, 28)
+    const validDay = (d: unknown): d is string => forecastDay(h, d)
     if (state.selectedDay !== null && !validDay(state.selectedDay)) throw new Error('Intraday selected day must be in the 28-day forecast window.')
     const days = object(state.days, 'Intraday days')
     if (Object.keys(days).length > 28) throw new Error('Intraday has more than 28 days.')
@@ -183,6 +267,12 @@ export function validateProject(value: unknown): asserts value is Project {
       }
     }
   }
+  const schedules = object(p.scheduleByQueue, 'Schedules')
+  for (const [queue, value] of Object.entries(schedules)) {
+    const h = history.get(queue)
+    if (!h) throw new Error(`Schedule queue "${queue}" is absent from the data.`)
+    schedule(value, `Schedule (${queue})`, h)
+  }
 }
 export function serializeProject(project: Project): string {
   validateProject(project)
@@ -194,7 +284,7 @@ export function parseProject(text: string): Project {
   if (text.length > MAX_PROJECT_BYTES || new TextEncoder().encode(text).length > MAX_PROJECT_BYTES) throw new Error('Project exceeds the 64 MB file limit.')
   let value: unknown
   try { value = JSON.parse(text) } catch { throw new Error('Could not read project JSON. Choose a saved WFM project file.') }
-  // Only exact legacy shapes migrate, v1 -> v2 -> v3. Extra fields must never be silently discarded.
+  // Only exact legacy shapes migrate, v1 -> v2 -> v3 -> v4. Extra fields must never be silently discarded.
   const version = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>).version : undefined
   if (version === 1) {
     const legacy = object(value, 'Legacy project')
@@ -208,6 +298,11 @@ export function parseProject(text: string): Project {
     const plans = Object.fromEntries(Object.entries(object(legacy.capacityByQueue, 'Capacity plans'))
       .map(([queue, plan]) => [queue, migrateCapacityV2(plan, `Capacity (${queue})`)]))
     value = { ...legacy, version: 3, capacityByQueue: plans }
+  }
+  if (version === 1 || version === 2 || version === 3) {
+    const legacy = object(value, 'Legacy project')
+    fields(legacy, ['schema', 'version', 'name', 'records', 'sourceLabel', 'queue', 'horizon', 'staffing', 'capacityByQueue', 'intradayByQueue'], 'Legacy project')
+    value = { ...legacy, version: 4, scheduleByQueue: {} }
   }
   validateProject(value)
   return value

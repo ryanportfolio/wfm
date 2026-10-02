@@ -31,9 +31,9 @@ describe('intraday project state and migration', () => {
     day.scheduled['2026-01-06T08:00:00'] = '-1'
     expect(() => serializeProject(p)).toThrow(/Intraday scheduled/)
   })
-  it('migrates exact v1 fields through v2 to v3, preserving all older settings', () => {
+  it('migrates exact v1 fields through v2 and v3 to v4, preserving all older settings', () => {
     const p = fixture()
-    const { intradayByQueue: _intraday, ...old } = p
+    const { intradayByQueue: _intraday, scheduleByQueue: _schedules, ...old } = p
     const v1 = { ...old, version: 1, capacityByQueue: { ['__proto__']: v2Capacity() } }
     expect(parseProject(JSON.stringify(v1))).toEqual(p)
     expect(() => parseProject(JSON.stringify({ ...v1, intradayByQueue: { bad: 1 } }))).toThrow('fields')
@@ -59,7 +59,7 @@ describe('intraday project state and migration', () => {
 })
 
 export function fixture(): Project {
-  return { schema: 'wfm-project', version: 3, intradayByQueue: {}, name: 'September plan', sourceLabel: 'history.csv',
+  return { schema: 'wfm-project', version: 4, intradayByQueue: {}, scheduleByQueue: {}, name: 'September plan', sourceLabel: 'history.csv',
     records: [{ ts: '2026-01-05T08:00', queue: '__proto__', offered: 42, aht: 300 }],
     queue: '__proto__', horizon: 28, staffing: initialStaffing('#s=v1;s:85;v:10&r=27.50'),
     capacityByQueue: { ['__proto__']: exampleCapacityState() } }
@@ -70,7 +70,8 @@ function v2Capacity(inputs: Record<string, string> = {}) {
     demand: Array.from({ length: 13 }, (_, i) => i < 6 ? '78' : '84'), sources: Array(13).fill('example'), startDate: null, seedPaidHours: null }
 }
 function v2Project(capacityByQueue: Record<string, unknown>) {
-  return JSON.stringify({ ...fixture(), version: 2, capacityByQueue })
+  const { scheduleByQueue: _schedules, ...v3 } = fixture()
+  return JSON.stringify({ ...v3, version: 2, capacityByQueue })
 }
 describe('capacity version 3 and v2 migration', () => {
   it('round-trips several classes with nesting, history provenance and growth', () => {
@@ -93,7 +94,7 @@ describe('capacity version 3 and v2 migration', () => {
     const p = fixture()
     p.records.push({ ...p.records[0], queue: 'constructor' })
     const migrated = parseProject(JSON.stringify({ ...JSON.parse(v2Project(plans)), records: p.records }))
-    expect(migrated.version).toBe(3)
+    expect(migrated.version).toBe(4)
     const state = migrated.capacityByQueue.__proto__
     expect(state.inputs.newHireAttritionPct).toBe('10')
     expect(state.inputs.weeklyGrowthPct).toBe('0')
@@ -117,7 +118,7 @@ describe('capacity version 3 and v2 migration', () => {
     ['extra v2 input', () => v2Project({ ['__proto__']: v2Capacity({ newHireAttritionPct: '0' }) })],
     ['v3 capacity labelled v2', () => v2Project({ ['__proto__']: exampleCapacityState() })],
     ['invalid migrated value', () => v2Project({ ['__proto__']: v2Capacity({ classSize: '-1' }) })],
-    ['unknown version', () => JSON.stringify({ ...fixture(), version: 4 })],
+    ['unknown version', () => JSON.stringify({ ...fixture(), version: 5 })],
     ['missing version', () => { const { version: _v, ...rest } = fixture(); return JSON.stringify(rest) }],
   ])('rejects %s on open', (_label, text) => {
     expect(() => parseProject(text())).toThrow()
@@ -188,7 +189,7 @@ describe('portable project validation', () => {
     expect(restored.capacityByQueue.__proto__.demand[0]).toBe('78')
   })
   it.each([
-    ['version', (p: Project) => { p.version = 4 as 3 }],
+    ['version', (p: Project) => { p.version = 5 as 4 }],
     ['timestamp', (p: Project) => { p.records[0].ts = '2026-02-30T08:00' }],
     ['duplicates', (p: Project) => { p.records.push({ ...p.records[0], ts: '2026-01-05T08:00:00' }) }],
     ['infinite row', (p: Project) => { p.records[0].offered = Infinity }],

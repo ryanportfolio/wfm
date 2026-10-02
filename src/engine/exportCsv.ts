@@ -11,6 +11,8 @@
  *   and a daily summary CSV matching the on-screen table.
  * - Scorecard: one wide CSV, one row per method: WAPE/MAPE/bias at interval,
  *   daily, and weekly grain, then WAPE per lead day.
+ * - Schedule: two files. A shifts CSV (one row per shift, clock times) and an
+ *   interval coverage CSV (required, target, scheduled, over, under agents).
  *
  * Values keep up to 6 decimals (analyst data, not display rounding). Rates
  * are fractions (0.8 = 80% service level), never percent strings. Dates and
@@ -24,6 +26,8 @@ import type {
   StaffingInterval,
 } from './types'
 import { weekdayOfIso } from './series'
+import type { ScheduleResult, ScheduleRow, ShiftTemplate } from './schedule'
+import { paidMinutes, SLOT_MINUTES, slotClock } from './schedule'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -186,4 +190,61 @@ export function scorecardCsv(reports: readonly BacktestReport[]): string {
     ]
   })
   return toCsv(header, rows)
+}
+
+/**
+ * Built shifts, one row per shift in start order. Times are clock times
+ * "HH:MM" on the schedule date (a shift ending at midnight reads 24:00).
+ * Break columns repeat up to the most breaks any used template has; a shift
+ * with fewer breaks or no lunch leaves those cells empty.
+ */
+export function scheduleShiftsCsv(result: ScheduleResult, templates: readonly ShiftTemplate[]): string {
+  const dayStart = result.rows[0]?.ts ?? ''
+  const byId = new Map(templates.map((t) => [t.id, t]))
+  const used = result.shifts.map((sh) => {
+    const t = byId.get(sh.templateId)
+    if (!t) throw new Error(`Shift template "${sh.templateId}" is not in the template list`)
+    return t
+  })
+  const breakCols = Math.max(0, ...used.map((t) => t.breaks.length))
+  const header = ['date', 'shift', 'template', 'start', 'end', 'paid_hours']
+  for (let b = 1; b <= breakCols; b++) header.push(`break_${b}_start`, `break_${b}_end`)
+  header.push('lunch_start', 'lunch_end', 'lunch_paid')
+  const clock = (slot: number) => slotClock(dayStart, slot)
+  return toCsv(
+    header,
+    result.shifts.map((sh, i) => {
+      const t = used[i]
+      const row = [dayStart.slice(0, 10), String(i + 1), csvText(t.name), clock(sh.startSlot), clock(sh.endSlot), csvNum(paidMinutes(t) / 60)]
+      for (let b = 0; b < breakCols; b++) {
+        const at = sh.breakSlots[b]
+        row.push(...(at === undefined ? ['', ''] : [clock(at), clock(at + t.breaks[b].minutes / SLOT_MINUTES)]))
+      }
+      if (t.lunch && sh.lunchSlot !== null) {
+        row.push(clock(sh.lunchSlot), clock(sh.lunchSlot + t.lunch.minutes / SLOT_MINUTES), t.lunch.paid ? 'yes' : 'no')
+      } else {
+        row.push('', '', '')
+      }
+      return row
+    }),
+  )
+}
+
+/** Interval coverage of a built schedule, in agents: one row per interval. */
+export function scheduleCoverageCsv(rows: readonly ScheduleRow[]): string {
+  return toCsv(
+    ['ts', 'required', 'target', 'scheduled', 'over', 'under'],
+    rows.map((r) => [r.ts, csvNum(r.required), csvNum(r.target), csvNum(r.scheduled), csvNum(r.over), csvNum(r.under)]),
+  )
+}
+
+/**
+ * Free text as one CSV cell. A leading = + - @ tab or carriage return gets an
+ * apostrophe prefix so spreadsheets show the text instead of running it as a
+ * formula; the cell is quoted when it holds a comma, quote or line break.
+ * Numbers go through csvNum, never here, so negative values are unaffected.
+ */
+export function csvText(s: string): string {
+  const safe = /^[=+\-@\t\r]/.test(s) ? "'" + s : s
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }

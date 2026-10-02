@@ -14,9 +14,11 @@ import type { ForecastOpts } from './forecastPipeline'
 import type { Scenario, StaffingConfig } from './staffing'
 import type { ForecastPoint, IntervalRecord } from './types'
 import type { IntradayInputs } from './intraday'
+import type { ScheduleDayRequest } from './scheduleDay'
 
 export type WorkerRequest =
   | { id: number; kind: 'intraday'; points: ForecastPoint[]; inputs: IntradayInputs; config: StaffingConfig }
+  | { id: number; kind: 'schedule'; request: ScheduleDayRequest }
   | { id: number; kind: 'backtest'; records: IntervalRecord[]; queue: string; opts: BacktestOpts }
   | { id: number; kind: 'forecast'; records: IntervalRecord[]; queue: string; opts: ForecastOpts }
   | { id: number; kind: 'historySeed'; records: IntervalRecord[]; queue: string; planStart: string; weeklyGrowth: number }

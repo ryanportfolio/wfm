@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 
-export type TabId = 'data' | 'forecast' | 'accuracy' | 'staffing' | 'capacity' | 'intraday'
+export type TabId = 'data' | 'forecast' | 'accuracy' | 'staffing' | 'capacity' | 'intraday' | 'schedule'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'data', label: 'Data' },
@@ -9,6 +9,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'staffing', label: 'Staffing' },
   { id: 'capacity', label: 'Capacity' },
   { id: 'intraday', label: 'Intraday' },
+  { id: 'schedule', label: 'Schedule' },
 ]
 
 /**

@@ -13,9 +13,9 @@ it('rejects costly valid CSV/project forecasts through both staffing entry point
   expect(parsed.errors).toEqual([])
   expect(parsed.records).toHaveLength(28)
   const project = parseProject(serializeProject({
-    schema: 'wfm-project', version: 3, name: 'Tiny AHT', sourceLabel: 'tiny.csv',
+    schema: 'wfm-project', version: 4, name: 'Tiny AHT', sourceLabel: 'tiny.csv',
     records: parsed.records, queue: 'voice', horizon: 7, staffing: initialStaffing(''),
-    capacityByQueue: {}, intradayByQueue: {},
+    capacityByQueue: {}, intradayByQueue: {}, scheduleByQueue: {},
   }))
   const forecast = runForecast(project.records, 'voice', { horizonDays: 7 })
   expect(forecast.intervalForecast[0]).toEqual({ ts: '2026-02-02T08:00:00', offered: 1, aht: 1e-8 })

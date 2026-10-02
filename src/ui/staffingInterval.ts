@@ -1,11 +1,16 @@
 import type { ForecastPoint } from '../engine/types'
 
-/** Match interval duration across staffing and capacity seeding. */
+/**
+ * Match interval duration across staffing and capacity seeding: the smallest positive gap
+ * between consecutive points on the same day, so a slot absent from one day cannot widen it.
+ */
 export function deriveIntervalSec(points: readonly ForecastPoint[]): number {
-  if (points.length >= 2 && points[0].ts.slice(0, 10) === points[1].ts.slice(0, 10)) {
-    const secOf = (ts: string) => Number(ts.slice(11, 13)) * 3600 + Number(ts.slice(14, 16)) * 60
-    const diff = secOf(points[1].ts) - secOf(points[0].ts)
-    if (diff > 0) return diff
+  const secOf = (ts: string) => Number(ts.slice(11, 13)) * 3600 + Number(ts.slice(14, 16)) * 60
+  let min = Infinity
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].ts.slice(0, 10) !== points[i - 1].ts.slice(0, 10)) continue
+    const diff = secOf(points[i].ts) - secOf(points[i - 1].ts)
+    if (diff > 0 && diff < min) min = diff
   }
-  return 1800
+  return Number.isFinite(min) ? min : 1800
 }

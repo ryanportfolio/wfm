@@ -46,6 +46,7 @@ export default function App() {
   const [sourceLabel, setSourceLabel] = useState('')
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadingSample, setLoadingSample] = useState(false)
+  const [loadingHalifax, setLoadingHalifax] = useState(false)
   const [queueChoice, setQueueChoice] = useState('')
   const [capacityByQueue, setCapacityByQueue] = useState<Record<string, CapacityState>>({})
   const [intradayByQueue, setIntradayByQueue] = useState<Record<string, IntradayState>>({})
@@ -156,6 +157,26 @@ export default function App() {
     }, 30)
   }
 
+  const loadHalifax = () => {
+    const request = ++importSequence.current
+    const label = 'Halifax 311 call volumes (real data)'
+    setLoadingHalifax(true)
+    fetch(`${import.meta.env.BASE_URL}data/halifax-311.csv`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.text()
+      })
+      .then((text) => {
+        if (request !== importSequence.current) return
+        const { records: recs, errors } = parseCsv(text)
+        setData(recs, errors, label)
+      })
+      .catch((err) => {
+        if (request === importSequence.current) setLoadError(`Halifax data failed to load: ${errorMessage(err)}. Press the button again.`)
+      })
+      .finally(() => setLoadingHalifax(false))
+  }
+
   const loadCsv = (file: File) => {
     const request = ++importSequence.current
     file
@@ -209,7 +230,7 @@ export default function App() {
   const saveProject = () => {
     if (!records) return
     try {
-      const project: Project = { schema: 'wfm-project', version: 2, name: projectName, records, sourceLabel,
+      const project: Project = { schema: 'wfm-project', version: 3, name: projectName, records, sourceLabel,
         queue, horizon, staffing, capacityByQueue, intradayByQueue }
       downloadTextFile(fileSlug(projectName) + '.json', serializeProject(project), 'application/json')
       setProjectError(null)
@@ -287,6 +308,7 @@ export default function App() {
             records={records}
             csvErrors={csvErrors}
             loadingSample={loadingSample}
+            loadingHalifax={loadingHalifax}
             sourceLabel={sourceLabel}
             loadError={loadError}
             queues={queues}
@@ -294,6 +316,7 @@ export default function App() {
             forecast={forecast}
             theme={theme}
             onLoadSample={loadSample}
+            onLoadHalifax={loadHalifax}
             onCsvFile={loadCsv}
           />
         </div>
@@ -360,8 +383,8 @@ export default function App() {
           )}
         </div>
         <div hidden={tab !== 'capacity'} role="tabpanel" id="panel-capacity" aria-labelledby="tab-capacity">
-          {hasData ? <CapacityTab key={datasetVersion + '|' + queue + '|' + horizon} queue={queue} forecast={forecast?.queue === queue && forecast.dailyForecast.length === horizon ? forecast : null} state={Object.prototype.hasOwnProperty.call(capacityByQueue, queue) ? capacityByQueue[queue] : emptyCapacityState()} theme={theme}
-            onChange={next => setCapacityByQueue(prev => ({ ...prev, [queue]: next }))} /> : <EmptyState title="No data for capacity planning yet" text="Load data, then compare 13 weeks of demand with your headcount and a proposed hiring class." onGoData={() => setTab('data')} />}
+          {hasData ? <CapacityTab key={datasetVersion + '|' + queue + '|' + horizon} queue={queue} records={records} forecast={forecast?.queue === queue && forecast.dailyForecast.length === horizon ? forecast : null} state={Object.prototype.hasOwnProperty.call(capacityByQueue, queue) ? capacityByQueue[queue] : emptyCapacityState()} theme={theme}
+            onChange={next => setCapacityByQueue(prev => ({ ...prev, [queue]: next }))} /> : <EmptyState title="No data for capacity planning yet" text="Load data, then compare 13 weeks of demand with your headcount and proposed hiring classes." onGoData={() => setTab('data')} />}
         </div>
         <div hidden={tab !== 'intraday'} role="tabpanel" id="panel-intraday" aria-labelledby="tab-intraday">
           {hasData && forecast?.queue === queue && forecast.dailyForecast.length === horizon ? <IntradayTab key={datasetVersion + '|' + queue + '|' + horizon} forecast={forecast} queue={queue} scenario={staffing.a} theme={theme} active={tab === 'intraday'}

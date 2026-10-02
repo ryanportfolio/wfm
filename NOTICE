@@ -3,3 +3,14 @@ This project is licensed under the MIT License (see LICENSE).
 Individual skills under .claude/skills/ and .agents/skills/ may carry their own
 licenses and attributions (see .claude/skills/PROVENANCE.md and per-skill
 LICENSE/NOTICE files); those terms govern for the respective skill contents.
+
+public/data/halifax-311.csv is not covered by the MIT License. It is derived
+from Halifax Regional Municipality's "311 Call Volumes" dataset
+(https://data-hrm.hub.arcgis.com/datasets/HRM::311-call-volumes/about) and
+modified as described in docs/backtest-halifax.md: agent-side fields are
+recombined, omitted intervals are zero-filled, and dates after 2023-05-22
+are removed. It is used under the Open Government
+Licence - Halifax (https://data-hrm.hub.arcgis.com/pages/open-data-licence).
+Contains information licenced under the Open Government Licence—Halifax.
+Halifax Regional Municipality does not endorse this project or its use of the
+data.

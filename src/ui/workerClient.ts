@@ -28,6 +28,7 @@ import { failAll, routeMessage, supersede } from '../engine/workerProtocol'
 import type { IntradayInputs, IntradayResult } from '../engine/intraday'
 import type { ScheduleDayRequest } from '../engine/scheduleDay'
 import type { ScheduleResult } from '../engine/schedule'
+import type { HistorySeed } from '../engine/capacitySeed'
 
 /** Wording for one kind of isolated job's cancel, timeout and crash errors. */
 interface JobText { cancelled: string; timeout: string; failed: string }
@@ -137,6 +138,9 @@ function post<T>(
   return { id, promise }
 }
 
+/** Folds and horizon the Accuracy tab runs; README.md quotes the same values. */
+export const ACCURACY_BACKTEST_OPTS = { folds: 8, horizonDays: 28 } satisfies BacktestOpts
+
 export async function backtestInWorker(
   records: IntervalRecord[],
   queue: string,
@@ -160,6 +164,21 @@ export async function forecastInWorker(
     return runForecast(records, queue, opts)
   }
   return post<ForecastResult>({ kind: 'forecast', records, queue, opts }).promise
+}
+
+/** Capacity history seed: cleans the queue's history and averages same-ISO-week intervals. Only that queue's records cross to the worker. */
+export async function historySeedInWorker(
+  records: IntervalRecord[],
+  queue: string,
+  planStart: string,
+  weeklyGrowth: number,
+): Promise<HistorySeed> {
+  const queueRecords = records.filter(r => r.queue === queue)
+  if (!workerSupported()) {
+    const { buildHistorySeed } = await import('../engine/capacitySeed')
+    return buildHistorySeed(queueRecords, queue, planStart, weeklyGrowth)
+  }
+  return post<HistorySeed>({ kind: 'historySeed', records: queueRecords, queue, planStart, weeklyGrowth }).promise
 }
 
 export type StaffingSession = (

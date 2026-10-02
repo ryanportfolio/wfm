@@ -1,7 +1,9 @@
 import type { IntervalRecord } from '../engine/types'
 import { validTimestamp } from '../engine/csv'
 import { intervalKey } from '../engine/dataQuality'
-import { capacityConfig, emptyCapacityState } from './capacityState'
+import { CAPACITY_LIMITS } from '../engine/capacity'
+import { HISTORY_SEED_MAX_WEEKLY_GROWTH } from '../engine/capacitySeed'
+import { CAPACITY_SOURCES, capacityConfig, emptyCapacityState, emptyHiringClass, seedGrowth } from './capacityState'
 import type { CapacityState } from './capacityState'
 import { DEFAULT_SCENARIO } from './controls/ScenarioPanel'
 import type { ScenarioState } from './controls/ScenarioPanel'
@@ -19,7 +21,7 @@ export interface StaffingState {
 }
 export interface Project {
   schema: 'wfm-project'
-  version: 2
+  version: 3
   name: string
   records: IntervalRecord[]
   sourceLabel: string
@@ -63,7 +65,7 @@ function scenario(value: unknown, label: string): asserts value is ScenarioState
 }
 function capacity(value: unknown, label: string): asserts value is CapacityState {
   const s = object(value, label)
-  fields(s, ['inputs', 'demand', 'sources', 'startDate', 'seedPaidHours'], label)
+  fields(s, Object.keys(emptyCapacityState()), label)
   const inputs = object(s.inputs, `${label}.inputs`)
   const defaults = emptyCapacityState()
   fields(inputs, Object.keys(defaults.inputs), `${label}.inputs`)
@@ -72,20 +74,44 @@ function capacity(value: unknown, label: string): asserts value is CapacityState
     string(inputs[key], `${label}.${key}`, 100, true)
     if ((inputs[key] as string).trim()) defaults.inputs[key] = inputs[key] as string
   }
+  if (!Array.isArray(s.classes) || s.classes.length > CAPACITY_LIMITS.hiringClasses) throw new Error(`${label} needs at most ${CAPACITY_LIMITS.hiringClasses} hiring classes.`)
+  defaults.classes = s.classes.map((value: unknown, i: number) => {
+    const draft = object(value, `${label}.classes[${i}]`), completed = emptyHiringClass()
+    fields(draft, Object.keys(completed), `${label}.classes[${i}]`)
+    for (const key of Object.keys(completed) as (keyof typeof completed)[]) {
+      string(draft[key], `${label}.classes[${i}].${key}`, 100, true)
+      if ((draft[key] as string).trim()) completed[key] = draft[key] as string
+    }
+    return completed
+  })
   if (!Array.isArray(s.demand) || s.demand.length !== 13 || !Array.isArray(s.sources) || s.sources.length !== 13) throw new Error(`${label} needs exactly 13 demand values and sources.`)
   for (let i = 0; i < 13; i++) {
     string(s.demand[i], `${label}.demand[${i}]`, 100, true)
     defaults.demand[i] = s.demand[i].trim() ? s.demand[i] : '0'
-    if (!['unset', 'manual', 'example', 'forecast', 'assumption'].includes(s.sources[i])) throw new Error(`${label} contains an invalid demand source.`)
+    if (!CAPACITY_SOURCES.includes(s.sources[i])) throw new Error(`${label} contains an invalid demand source.`)
   }
-  try { capacityConfig(defaults) } catch (err) { throw new Error(`${label}: ${(err as Error).message}`) }
+  try { capacityConfig(defaults); seedGrowth(defaults) } catch (err) { throw new Error(`${label}: ${(err as Error).message}`) }
   if (s.startDate !== null && (typeof s.startDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s.startDate) || !validTimestamp(`${s.startDate}T00:00`))) throw new Error(`${label}.startDate must be a real ISO date or null.`)
   if (s.seedPaidHours !== null) { number(s.seedPaidHours, `${label}.seedPaidHours`, 0, 168); if (s.seedPaidHours === 0) throw new Error(`${label}.seedPaidHours must be positive.`) }
+  const growth = HISTORY_SEED_MAX_WEEKLY_GROWTH * 100
+  if (s.seedGrowthPct !== null) number(s.seedGrowthPct, `${label}.seedGrowthPct`, -growth, growth)
+  if (!Array.isArray(s.holidayMismatch) || s.holidayMismatch.length !== 13 || s.holidayMismatch.some((v: unknown) => typeof v !== 'boolean')) throw new Error(`${label}.holidayMismatch must hold 13 true/false flags.`)
+}
+/** v2 capacity drafts had one class; v3 makes it a one-element list with no nesting and the same rate for new hires. */
+function migrateCapacityV2(value: unknown, label: string): unknown {
+  const s = object(value, label)
+  fields(s, ['inputs', 'demand', 'sources', 'startDate', 'seedPaidHours'], label)
+  const inputs = object(s.inputs, `${label}.inputs`)
+  fields(inputs, ['startingHeadcount', 'weeklyAttritionPct', 'paidHoursPerWeek', 'shrinkagePct', 'hourlyCost', 'classSize', 'startWeek', 'trainingWeeks', 'rampWeeks'], `${label}.inputs`)
+  const { classSize, startWeek, trainingWeeks, rampWeeks, ...supply } = inputs
+  return { inputs: { ...supply, newHireAttritionPct: inputs.weeklyAttritionPct, weeklyGrowthPct: '0' },
+    classes: [{ size: classSize, startWeek, trainingWeeks, nestingWeeks: '0', nestingProductivityPct: '0', rampWeeks }],
+    demand: s.demand, sources: s.sources, startDate: s.startDate, seedPaidHours: s.seedPaidHours, seedGrowthPct: null, holidayMismatch: Array(13).fill(false) }
 }
 /** Strict validation runs before serialization and before any imported state is applied. */
 export function validateProject(value: unknown): asserts value is Project {
   const p = object(value, 'Project')
-  if (p.schema !== 'wfm-project' || p.version !== 2) throw new Error('Unsupported project format or version. Expected WFM project version 2.')
+  if (p.schema !== 'wfm-project' || p.version !== 3) throw new Error('Unsupported project format or version. Expected WFM project version 3.')
   fields(p, ['schema', 'version', 'name', 'records', 'sourceLabel', 'queue', 'horizon', 'staffing', 'capacityByQueue', 'intradayByQueue'], 'Project')
   string(p.name, 'Project name', 120)
   string(p.sourceLabel, 'Data source', 1000)
@@ -168,11 +194,20 @@ export function parseProject(text: string): Project {
   if (text.length > MAX_PROJECT_BYTES || new TextEncoder().encode(text).length > MAX_PROJECT_BYTES) throw new Error('Project exceeds the 64 MB file limit.')
   let value: unknown
   try { value = JSON.parse(text) } catch { throw new Error('Could not read project JSON. Choose a saved WFM project file.') }
-  // Only the exact legacy root migrates. Extra fields must never be silently discarded.
-  if (value && typeof value === 'object' && !Array.isArray(value) && (value as Record<string, unknown>).version === 1) {
+  // Only exact legacy shapes migrate, v1 -> v2 -> v3. Extra fields must never be silently discarded.
+  const version = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>).version : undefined
+  if (version === 1) {
     const legacy = object(value, 'Legacy project')
     fields(legacy, ['schema', 'version', 'name', 'records', 'sourceLabel', 'queue', 'horizon', 'staffing', 'capacityByQueue'], 'Legacy project')
     value = { ...legacy, version: 2, intradayByQueue: {} }
+  }
+  if (version === 1 || version === 2) {
+    const legacy = object(value, 'Legacy project')
+    fields(legacy, ['schema', 'version', 'name', 'records', 'sourceLabel', 'queue', 'horizon', 'staffing', 'capacityByQueue', 'intradayByQueue'], 'Legacy project')
+    // fromEntries defines own keys, so a queue named __proto__ stays data.
+    const plans = Object.fromEntries(Object.entries(object(legacy.capacityByQueue, 'Capacity plans'))
+      .map(([queue, plan]) => [queue, migrateCapacityV2(plan, `Capacity (${queue})`)]))
+    value = { ...legacy, version: 3, capacityByQueue: plans }
   }
   validateProject(value)
   return value
